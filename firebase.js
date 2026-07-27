@@ -9,15 +9,17 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCRSVQ-M_r9RukOOZBWt5GZuoUQJFBHZ2A",
-  authDomain: "controle-manutencao-cc96e.firebaseapp.com",
-  projectId: "controle-manutencao-cc96e",
+  apiKey: "AIzaSyAZ6sSQrD2mwhRYulB-5yvsTXtX5Oty27w",
 
-  // 🔥 CORREÇÃO AQUI
-  storageBucket: "controle-manutencao-cc96e.firebasestorage.app",
+  authDomain: "controlefinanceiro-738dc.firebaseapp.com",
 
-  messagingSenderId: "453313302773",
-  appId: "1:453313302773:web:64e384e412c1458adcf5bc"
+  projectId: "controlefinanceiro-738dc",
+
+  storageBucket: "controlefinanceiro-738dc.firebasestorage.app",
+
+  messagingSenderId: "361251861150",
+
+  appId: "1:361251861150:web:16457340493253907d018f"
 };
 
 const app = initializeApp(firebaseConfig);
