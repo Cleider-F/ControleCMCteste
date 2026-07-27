@@ -297,20 +297,28 @@
       grid-auto-flow: column;
       grid-auto-columns: 1fr;
       gap: 7px;
-      min-height: 170px;
+      min-height: 188px;
       align-items: end;
       padding-top: 8px;
     }
 
     .mini-bar {
       display: grid;
-      grid-template-rows: 1fr auto;
-      gap: 6px;
-      min-width: 26px;
-      height: 170px;
+      grid-template-rows: auto 1fr auto;
+      gap: 5px;
+      min-width: 28px;
+      height: 188px;
       text-align: center;
       color: var(--muted);
       font-size: 11px;
+    }
+
+    .mini-value {
+      min-height: 16px;
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
     }
 
     .mini-bar span {
@@ -451,7 +459,6 @@
       <button class="tab" data-view="recorrencias">Recorrências</button>
       <button class="tab" data-view="frota">Frota Problema</button>
       <button class="tab" data-view="componentes">Componentes</button>
-      <button class="tab" data-view="oficina">Oficina</button>
       <button class="tab" data-view="inspetores">Inspetores</button>
     </nav>
 
@@ -459,7 +466,6 @@
     <section id="view-recorrencias" class="view" style="display:none;"></section>
     <section id="view-frota" class="view" style="display:none;"></section>
     <section id="view-componentes" class="view" style="display:none;"></section>
-    <section id="view-oficina" class="view" style="display:none;"></section>
     <section id="view-inspetores" class="view" style="display:none;"></section>
   </main>
 
@@ -496,7 +502,6 @@
       recorrencias: document.getElementById("view-recorrencias"),
       frota: document.getElementById("view-frota"),
       componentes: document.getElementById("view-componentes"),
-      oficina: document.getElementById("view-oficina"),
       inspetores: document.getElementById("view-inspetores")
     };
 
@@ -635,15 +640,16 @@
       const tempoInicio = mediaHoras(implFiltrados.map(i => diffHoras(i.dataInspecao, i.inicioManutencao)));
       const tempoOficina = mediaHoras(implFiltrados.map(i => diffHoras(i.inicioManutencao, i.dataLiberacao)));
 
-      const recorrencias = calcularRecorrencias(itensFiltrados, implPorId);
-      const frota = calcularFrota(itensFiltrados, implFiltrados, implPorId);
+      const itensManuais = itensFiltrados.filter(ehItemManual);
+      const recorrencias = calcularRecorrencias(itensManuais, implPorId);
+      const frota = calcularFrota(itensManuais, implFiltrados, implPorId);
       const componentesRank = calcularComponentes(itensFiltrados);
-      const oficina = calcularOficina(implFiltrados);
       const inspetores = calcularInspetores(implFiltrados, itensFiltrados, implPorId);
 
       return {
         implFiltrados,
         itensFiltrados,
+        itensManuais,
         implPorId,
         metricas: {
           totalInspecoes: implFiltrados.length,
@@ -657,6 +663,8 @@
           liberadas: finalizadas.length,
           totalItens: itensFiltrados.length,
           avarias: itensFiltrados.filter(i => i.tipo === "avaria").length,
+          totalItensManuais: itensManuais.length,
+          avariasManuais: itensManuais.filter(i => i.tipo === "avaria").length,
           recorrentes: recorrencias.filter(r => r.total > 1).length
         },
         series: {
@@ -667,7 +675,6 @@
         recorrencias,
         frota,
         componentes: componentesRank,
-        oficina,
         inspetores,
         heatmap: calcularHeatmap(recorrencias)
       };
@@ -807,33 +814,6 @@
         .sort((a, b) => b.total - a.total);
     }
 
-    function calcularOficina(implBase) {
-      const boxes = new Map();
-      const mecanicos = new Map();
-
-      implBase.forEach(impl => {
-        const box = impl.box || "Sem box";
-        if (!boxes.has(box)) boxes.set(box, { nome: box, total: 0, horas: [] });
-        boxes.get(box).total++;
-        boxes.get(box).horas.push(diffHoras(impl.inicioManutencao, impl.dataLiberacao));
-
-        (impl.equipeManutencao || []).forEach(nome => {
-          if (!mecanicos.has(nome)) mecanicos.set(nome, { nome, total: 0, horas: [] });
-          mecanicos.get(nome).total++;
-          mecanicos.get(nome).horas.push(diffHoras(impl.inicioManutencao, impl.dataLiberacao));
-        });
-      });
-
-      return {
-        boxes: Array.from(boxes.values())
-          .map(b => ({ ...b, mediaHoras: mediaHoras(b.horas) }))
-          .sort((a, b) => b.total - a.total),
-        mecanicos: Array.from(mecanicos.values())
-          .map(m => ({ ...m, mediaHoras: mediaHoras(m.horas) }))
-          .sort((a, b) => b.total - a.total)
-      };
-    }
-
     function calcularInspetores(implBase, itensBase, implPorId) {
       const map = new Map();
 
@@ -878,7 +858,6 @@
       renderRecorrencias();
       renderFrota();
       renderComponentes();
-      renderOficina();
       renderInspetores();
     }
 
@@ -890,9 +869,9 @@
           ${metric("Manutenções abertas", m.abertas, "Aguardando ou em manutenção", "warning")}
           ${metric("Finalizadas", m.finalizadas, "Status liberado", "success")}
           ${metric("Disponibilidade", `${m.disponibilidade.toFixed(1)}%`, "Liberados sobre registros filtrados", "success")}
-          ${metric("Tempo até oficina", formatarHoras(m.tempoInicio), "Inspeção até início da manutenção")}
-          ${metric("Permanência oficina", formatarHoras(m.tempoOficina), "Início até liberação", "warning")}
-          ${metric("Em manutenção", m.emManutencao, "Equipamentos na oficina", "danger")}
+          ${metric("Tempo até manutenção", formatarHoras(m.tempoInicio), "Inspeção até início da manutenção")}
+          ${metric("Tempo de manutenção", formatarHoras(m.tempoOficina), "Início até liberação", "warning")}
+          ${metric("Em manutenção", m.emManutencao, "Equipamentos em andamento", "danger")}
           ${metric("Aguardando box", m.aguardandoBox, "Aguardando manutenção", "warning")}
         </section>
 
@@ -914,15 +893,15 @@
 
       views.recorrencias.innerHTML = `
         <section class="metrics">
-          ${metric("Itens inspecionados", bi.metricas.totalItens, "Todos os itens do filtro", "warning")}
-          ${metric("Avarias", bi.metricas.avarias, "Itens marcados como avaria", "danger")}
-          ${metric("Itens recorrentes", bi.metricas.recorrentes, "Itens com mais de uma ocorrência", "success")}
+          ${metric("Itens manuais", bi.metricas.totalItensManuais, "Base da recorrência no filtro", "warning")}
+          ${metric("Avarias manuais", bi.metricas.avariasManuais, "Itens manuais marcados como avaria", "danger")}
+          ${metric("Itens recorrentes", bi.metricas.recorrentes, "Itens manuais com mais de uma ocorrência", "success")}
           ${metric("Top ocorrência", top[0]?.total || 0, top[0]?.descricao || "-")}
         </section>
 
         <section class="grid">
-          ${panel("Top 20 Defeitos Recorrentes", rankList(top, maior, "recurrence"))}
-          ${panel("Detalhe da Recorrência", renderRecurrenceDetail())}
+          ${panel("Top 20 Recorrências Manuais", rankList(top, maior, "recurrence"))}
+          ${panel("Detalhe da Recorrência Manual", renderRecurrenceDetail())}
         </section>
 
         ${panel("Mapa de Calor Mensal", renderHeatmap())}
@@ -937,7 +916,7 @@
 
       views.frota.innerHTML = `
         <section class="grid">
-          ${panel("Equipamentos com Maior Recorrência", rankList(top, maior, "fleet"))}
+          ${panel("Equipamentos com Maior Recorrência Manual", rankList(top, maior, "fleet"))}
           ${panel("Detalhe da Frota", renderFleetDetail())}
         </section>
       `;
@@ -974,15 +953,6 @@
       `;
     }
 
-    function renderOficina() {
-      views.oficina.innerHTML = `
-        <section class="grid-balanced">
-          ${panel("BI por Box", simpleRank(bi.oficina.boxes, "total", row => `${row.total} serviço(s) | tempo médio ${formatarHoras(row.mediaHoras)}`))}
-          ${panel("Tempo Médio por Mecânico", simpleRank(bi.oficina.mecanicos, "total", row => `${row.total} serviço(s) | tempo médio ${formatarHoras(row.mediaHoras)}`))}
-        </section>
-      `;
-    }
-
     function renderInspetores() {
       const maior = bi.inspetores[0]?.inspecoes || 1;
 
@@ -1009,7 +979,7 @@
         const count = type === "fleet" ? row.recorrencias : row.total;
         const title = type === "fleet" ? row.placa : row.descricao;
         const meta = type === "fleet"
-          ? `${row.inspecoes} inspeção(ões) | ${row.totalItens} item(ns) | ${row.avarias} avaria(s)`
+          ? `${row.inspecoes} inspeção(ões) | ${row.totalItens} item(ns) manual(is) | ${row.avarias} avaria(s)`
           : `${row.implementosQtd} implemento(s) | ${row.avarias} avaria(s) | MTBF ${formatarDias(row.mtbfDias)}`;
 
         const active = type === "fleet"
@@ -1091,7 +1061,7 @@
             Tipo: ${escapeHTML(row.tipo)}<br>
             Inspeções no período: ${row.inspecoes}<br>
             Ocorrências reincidentes: ${row.recorrencias}<br>
-            Itens registrados: ${row.totalItens}<br>
+            Itens manuais: ${row.totalItens}<br>
             Avarias: ${row.avarias}
           </div>
         </div>
@@ -1142,7 +1112,7 @@
         </div>
         <div class="insight-card">
           <strong>Frota com maior atenção</strong>
-          <div class="detail-meta">${topFrota ? `${escapeHTML(topFrota.placa)} tem ${topFrota.recorrencias} ocorrência(s) de itens repetidos em inspeções diferentes.` : "Sem dados de frota."}</div>
+          <div class="detail-meta">${topFrota ? `${escapeHTML(topFrota.placa)} tem ${topFrota.recorrencias} ocorrência(s) de itens manuais repetidos em inspeções diferentes.` : "Sem dados de frota."}</div>
         </div>
         <div class="insight-card">
           <strong>Componente dominante</strong>
@@ -1158,6 +1128,7 @@
         <div class="mini-chart">
           ${series.slice(-18).map(row => `
             <div class="mini-bar" title="${escapeHTML(row.label)}: ${row.total}">
+              <strong class="mini-value">${escapeHTML(row.total)}</strong>
               <span style="height:${Math.max(3, (row.total / maior) * 140)}px"></span>
               <small>${escapeHTML(row.short)}</small>
             </div>
@@ -1291,6 +1262,10 @@
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, " ")
         .replace(/[^\w\s]/g, "");
+    }
+
+    function ehItemManual(item) {
+      return !item.origem || item.origem === "manual";
     }
 
     function chaveItemLocalizado(item) {
