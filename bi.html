@@ -295,11 +295,16 @@
     .mini-chart {
       display: grid;
       grid-auto-flow: column;
-      grid-auto-columns: 1fr;
+      grid-auto-columns: minmax(42px, 1fr);
       gap: 7px;
       min-height: 188px;
       align-items: end;
       padding-top: 8px;
+      padding-bottom: 8px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
     }
 
     .mini-bar {
@@ -311,6 +316,7 @@
       text-align: center;
       color: var(--muted);
       font-size: 11px;
+      scroll-snap-align: start;
     }
 
     .mini-value {
@@ -522,15 +528,18 @@
 
     const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-    const componentes = [
-      { nome: "Freios", termos: ["freio", "cuica", "lona", "tambor", "catraca", "patim", "camara", "abs"] },
-      { nome: "Pneus/Rodas", termos: ["pneu", "roda", "cubo", "rolamento", "retentor", "parafuso roda"] },
-      { nome: "Suspensão", termos: ["suspensao", "bolsa", "mola", "bucha", "amortecedor", "balanco"] },
-      { nome: "Elétrica", termos: ["eletrica", "lanterna", "chicote", "sensor", "luz", "lampada", "pisca", "tomada"] },
-      { nome: "Motor", termos: ["motor", "oleo", "correia", "mangueira", "vazamento", "radiador", "filtro"] },
-      { nome: "Hidráulico", termos: ["hidraul", "bomba", "pto", "cilindro", "reservatorio", "valvula"] },
-      { nome: "Estrutural", termos: ["chassi", "trinca", "solda", "quinta roda", "pino rei", "fueiro", "longarina"] }
-    ];
+   const componentes = [
+  { nome: "Freios", termos: ["freio", "cuica", "lona", "tambor", "catraca de freio", "patim", "abs"] },
+  { nome: "Pneus/Rodas", termos: ["pneu", "roda", "estojo", "keps", "calibrar"] },
+  { nome: "Suspensão", termos: ["suspensao", "bolsa", "mola", "amortecedor", "balanca", "pino de centro"] },
+  { nome: "Elétrica", termos: ["eletrica", "elétrica", "lanterna", "chicote", "sensor", "luz", "lampada", "pisca", "tomada", "corujinha"] },
+  { nome: "Motor", termos: ["motor", "correia", "mangueira", "radiador", "filtro"] },
+  { nome: "Hidráulico", termos: ["hidraul", "bomba", "pto", "cilindro", "reservatorio"] },
+  { nome: "Estrutural", termos: ["chassi", "trinca", "solda", "fueiro", "assoalho", "sapata"] },
+  { nome: "5ª roda", termos: ["gaviao", "ferradura", "5 roda", "5ª roda", "quinta roda", "pino rei", "barra", "longarina"] },
+  { nome: "Catraca de amarração", termos: ["cinta", "amarração", "catraca de amarração", "manipulo", "gatilho"] }
+];
+
 
     let implementos = [];
     let itens = [];
@@ -1126,7 +1135,7 @@
       const maior = Math.max(1, ...series.map(row => row.total));
       return `
         <div class="mini-chart">
-          ${series.slice(-18).map(row => `
+          ${series.map(row => `
             <div class="mini-bar" title="${escapeHTML(row.label)}: ${row.total}">
               <strong class="mini-value">${escapeHTML(row.total)}</strong>
               <span style="height:${Math.max(3, (row.total / maior) * 140)}px"></span>
