@@ -88,6 +88,161 @@
 
     .btn-primary { background: var(--primary); }
     .btn-success { background: var(--success); }
+    .btn-secondary { background: #475569; }
+    .btn-report { background: #006b3f; }
+
+    .bi-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: -4px 0 14px;
+    }
+
+    .bi-actions button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+
+    .print-summary {
+      display: none;
+    }
+
+    .report-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      margin-bottom: 14px;
+      padding: 18px;
+      border-radius: 14px;
+      color: white;
+      background: linear-gradient(135deg, #063f35, #0f766e 58%, #16a34a);
+    }
+
+    .report-eyebrow {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    .report-hero h1 {
+      margin: 6px 0;
+      font-size: 25px;
+      line-height: 1.15;
+    }
+
+    .report-hero p,
+    .report-date {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      opacity: 0.94;
+    }
+
+    .report-date {
+      min-width: 160px;
+      text-align: right;
+      font-weight: 800;
+    }
+
+    .report-kpis,
+    .report-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .report-kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .report-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-kpi,
+    .report-box {
+      border: 1px solid #dbe5e0;
+      border-radius: 12px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .report-kpi {
+      padding: 12px;
+      border-top: 5px solid var(--primary);
+    }
+
+    .report-kpi.warning { border-top-color: var(--warning); }
+    .report-kpi.success { border-top-color: var(--success); }
+    .report-kpi.danger { border-top-color: var(--danger); }
+
+    .report-kpi span {
+      display: block;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .report-kpi strong {
+      display: block;
+      margin-top: 5px;
+      color: #0f172a;
+      font-size: 21px;
+    }
+
+    .report-box h3 {
+      margin: 0;
+      padding: 10px 12px;
+      color: white;
+      background: #1f2937;
+      font-size: 13px;
+    }
+
+    .report-box-body {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .report-bar-row {
+      display: grid;
+      grid-template-columns: minmax(100px, 0.8fr) minmax(0, 1.2fr) 42px;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .report-bar-label {
+      overflow: hidden;
+      color: #334155;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .report-bar-track {
+      height: 11px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+
+    .report-bar-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2196f3, #4caf50);
+    }
+
+    .report-bar-value {
+      color: #0f172a;
+      text-align: right;
+      font-weight: 900;
+    }
 
     .tabs {
       display: flex;
@@ -391,6 +546,65 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media print {
+      @page {
+        margin: 10mm;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body {
+        background: white;
+        padding-bottom: 0;
+      }
+
+      .topbar,
+      .toolbar,
+      .tabs,
+      .bi-actions,
+      #toast {
+        display: none !important;
+      }
+
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+
+      .print-summary {
+        display: block;
+        margin: 0 0 12px;
+        padding: 0;
+        border-bottom: none;
+        color: #334155;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .metrics,
+      .grid-balanced,
+      .report-kpis,
+      .report-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric-value {
+        font-size: 22px;
+      }
+
+      .panel,
+      .metric-card,
+      .rank-card,
+      .detail-card,
+      .insight-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
   </style>
 </head>
 
@@ -460,6 +674,14 @@
       <button id="btnAtualizar" class="btn-primary">Atualizar</button>
     </section>
 
+    <section class="bi-actions">
+      <button id="btnImprimir" type="button">Imprimir / PDF</button>
+      <button id="btnExportarCsv" type="button" class="btn-secondary">Baixar CSV</button>
+      <button id="btnExportarExcel" type="button" class="btn-report">Baixar Excel visual</button>
+    </section>
+
+    <section id="printResumo" class="print-summary"></section>
+
     <nav class="tabs">
       <button class="tab active" data-view="executivo">Executivo</button>
       <button class="tab" data-view="recorrencias">Recorrências</button>
@@ -500,7 +722,11 @@
       manutencao: document.getElementById("filtroManutencao"),
       status: document.getElementById("filtroStatus"),
       tipoItem: document.getElementById("filtroTipoItem"),
-      btnAtualizar: document.getElementById("btnAtualizar")
+      btnAtualizar: document.getElementById("btnAtualizar"),
+      btnImprimir: document.getElementById("btnImprimir"),
+      btnExportarCsv: document.getElementById("btnExportarCsv"),
+      btnExportarExcel: document.getElementById("btnExportarExcel"),
+      printResumo: document.getElementById("printResumo")
     };
 
     const views = {
@@ -533,11 +759,10 @@
       { nome: "Pneus/Rodas", termos: ["pneu", "roda", "estojo", "keps", "calibrar"] },
       { nome: "Suspensão", termos: ["suspensao", "bolsa", "mola", "amortecedor", "balanca", "pino de centro"] },
       { nome: "Elétrica", termos: ["eletrica", "elétrica", "lanterna", "chicote", "sensor", "luz", "lampada", "pisca", "tomada", "corujinha"] },
-      { nome: "Motor", termos: ["motor", "correia", "cabeçote", "filtro", "carter"] },
-      { nome: "Hidráulico", termos: ["hidraul", "bomba", "óleo", "cilindro", "reservatorio", "tomada de força"] },
-      { nome: "Estrutural", termos: ["chassi", "trinca", "solda", "fueiro", "assoalho", "sapata", "paralama", "lameiro"] },
+      { nome: "Motor", termos: ["motor", "correia", "mangueira", "radiador", "filtro"] },
+      { nome: "Hidráulico", termos: ["hidraul", "bomba", "pto", "cilindro", "reservatorio", "tomada de força"] },
+      { nome: "Estrutural", termos: ["chassi", "trinca", "solda", "fueiro", "assoalho", "sapata"] },
       { nome: "5ª roda", termos: ["gaviao", "ferradura", "5 roda", "5ª roda", "quinta roda", "pino rei", "barra", "longarina"] },
-      { nome: "Pneumático", termos: ["pneumatico", "mangueira de ar", "balão de ar", "vazamento"] },
       { nome: "Catraca de amarração", termos: ["cinta", "amarração", "catraca de amarração", "manipulo", "gatilho"] }
     ].map(comp => ({
       ...comp,
@@ -553,8 +778,11 @@
     let selectedFleet = null;
 
     els.btnAtualizar.addEventListener("click", carregarDados);
+    els.btnImprimir.addEventListener("click", imprimirBI);
+    els.btnExportarCsv.addEventListener("click", exportarCSV);
+    els.btnExportarExcel.addEventListener("click", exportarExcelVisual);
     Object.values(els)
-      .filter(el => el.tagName !== "BUTTON")
+      .filter(el => ["INPUT", "SELECT"].includes(el.tagName))
       .forEach(el => el.addEventListener("change", processar));
 
     document.querySelectorAll(".tab").forEach(tab => {
@@ -1358,6 +1586,198 @@
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
+    }
+
+    function imprimirBI() {
+      if (!bi) return showToast("Atualize o BI antes de imprimir.");
+      els.printResumo.innerHTML = escapeHTML(montarResumoBI()).replace(/\n/g, "<br>");
+      window.print();
+    }
+
+    async function compartilharResumo() {
+      if (!bi) return showToast("Atualize o BI antes de compartilhar.");
+
+      const text = montarResumoBI();
+      const shareData = {
+        title: "BI Executivo",
+        text
+      };
+
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (e) {
+          if (e?.name === "AbortError") return;
+        }
+      }
+
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("Resumo copiado para compartilhar.");
+          return;
+        } catch (e) {}
+      }
+
+      baixarArquivo("resumo-bi.txt", text, "text/plain;charset=utf-8");
+    }
+
+    function exportarCSV() {
+      if (!bi) return showToast("Atualize o BI antes de exportar.");
+
+      const m = bi.metricas;
+      const secoes = [
+        {
+          titulo: "Resumo",
+          linhas: [
+            ["Indicador", "Valor"],
+            ["Filtros", resumoFiltros()],
+            ["Inspecoes", m.totalInspecoes],
+            ["Manutencoes abertas", m.abertas],
+            ["Finalizadas", m.finalizadas],
+            ["Disponibilidade", `${m.disponibilidade.toFixed(1)}%`],
+            ["Tempo ate manutencao", formatarHoras(m.tempoInicio)],
+            ["Tempo de manutencao", formatarHoras(m.tempoOficina)],
+            ["Total de itens", m.totalItens],
+            ["Avarias", m.avarias]
+          ]
+        },
+        {
+          titulo: "Componentes",
+          linhas: [
+            ["Componente", "Ocorrencias", "Avarias", "Top itens"],
+            ...bi.componentes.map(row => [
+              row.nome,
+              row.total,
+              row.avarias,
+              row.topItens.map(([desc, qtd]) => `${desc}: ${qtd}`).join(" | ")
+            ])
+          ]
+        },
+        {
+          titulo: "Recorrencias",
+          linhas: [
+            ["Descricao", "Total", "Implementos", "Avarias", "MTBF"],
+            ...bi.recorrencias.slice(0, 100).map(row => [
+              row.descricao,
+              row.total,
+              row.implementosQtd,
+              row.avarias,
+              formatarDias(row.mtbfDias)
+            ])
+          ]
+        },
+        {
+          titulo: "Frota",
+          linhas: [
+            ["Placa", "Tipo", "Inspecoes", "Itens manuais", "Recorrencias", "Avarias"],
+            ...bi.frota.map(row => [
+              row.placa,
+              row.tipo,
+              row.inspecoes,
+              row.totalItens,
+              row.recorrencias,
+              row.avarias
+            ])
+          ]
+        },
+        {
+          titulo: "Inspetores",
+          linhas: [
+            ["Inspetor", "Inspecoes", "Defeitos", "Avarias", "Media itens por inspecao"],
+            ...bi.inspetores.map(row => [
+              row.nome,
+              row.inspecoes,
+              row.defeitos,
+              row.avarias,
+              row.media.toFixed(1)
+            ])
+          ]
+        }
+      ];
+
+      const csv = secoes.map(secao => [
+        csvLinha([secao.titulo]),
+        ...secao.linhas.map(csvLinha)
+      ].join("\n")).join("\n\n");
+
+      baixarArquivo(`bi-executivo-${toInputDate(new Date())}.csv`, `\ufeff${csv}`, "text/csv;charset=utf-8");
+      showToast("CSV gerado.");
+    }
+
+    function montarResumoBI() {
+      const m = bi.metricas;
+      const topComp = bi.componentes[0];
+      const topRec = bi.recorrencias[0];
+      const topFrota = bi.frota[0];
+
+      return [
+        "BI Executivo",
+        `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
+        `Visao: ${labelView(activeView)}`,
+        `Filtros: ${resumoFiltros()}`,
+        "",
+        `Inspecoes: ${m.totalInspecoes}`,
+        `Manutencoes abertas: ${m.abertas}`,
+        `Finalizadas: ${m.finalizadas}`,
+        `Disponibilidade: ${m.disponibilidade.toFixed(1)}%`,
+        `Tempo ate manutencao: ${formatarHoras(m.tempoInicio)}`,
+        `Tempo de manutencao: ${formatarHoras(m.tempoOficina)}`,
+        `Itens: ${m.totalItens}`,
+        `Avarias: ${m.avarias}`,
+        topComp ? `Top componente: ${topComp.nome} (${topComp.total} ocorrencias)` : "Top componente: sem dados",
+        topRec ? `Top recorrencia: ${topRec.descricao} (${topRec.total} ocorrencias)` : "Top recorrencia: sem dados",
+        topFrota ? `Frota com maior recorrencia: ${topFrota.placa} (${topFrota.recorrencias})` : "Frota com maior recorrencia: sem dados"
+      ].join("\n");
+    }
+
+    function resumoFiltros() {
+      const filtros = [
+        `periodo ${formatarDataFiltro(els.dataInicio.value)} ate ${formatarDataFiltro(els.dataFim.value)}`,
+        `equipamento ${textoSelecionado(els.tipoEquipamento)}`,
+        `manutencao ${textoSelecionado(els.manutencao)}`,
+        `status ${textoSelecionado(els.status)}`,
+        `tipo do item ${textoSelecionado(els.tipoItem)}`
+      ];
+      return filtros.join("; ");
+    }
+
+    function labelView(view) {
+      const labels = {
+        executivo: "Executivo",
+        recorrencias: "Recorrencias",
+        frota: "Frota Problema",
+        componentes: "Componentes",
+        inspetores: "Inspetores"
+      };
+      return labels[view] || view;
+    }
+
+    function textoSelecionado(select) {
+      return select.selectedOptions[0]?.textContent || "Todos";
+    }
+
+    function formatarDataFiltro(value) {
+      if (!value) return "sem data";
+      const [ano, mes, dia] = value.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    function csvLinha(cells) {
+      return cells.map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(";");
+    }
+
+    function baixarArquivo(nome, conteudo, tipo) {
+      const blob = new Blob([conteudo], { type: tipo });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nome;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     }
 
     function showToast(msg) {
