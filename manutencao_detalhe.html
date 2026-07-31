@@ -621,35 +621,7 @@
                 margin-bottom:15px;
             "
         >
-<label style="font-weight:bold;">Tipo do item</label>
 
-<select
-    id="novoTipo"
-    style="
-        width:100%;
-        padding:12px;
-        border-radius:10px;
-        border:1px solid #ccc;
-        box-sizing:border-box;
-        margin-bottom:10px;
-">
-    <option value="avaria">🔴 Avaria</option>
-    <option value="normal">🟢 Normal</option>
-</select>
-
-<label style="font-weight:bold;">Fotos (Máximo 3)</label>
-
-<input
-    type="file"
-    id="novasFotos"
-    accept="image/*"
-    capture="environment"
-    multiple
-    style="
-        width:100%;
-        margin-bottom:15px;
-    "
->
         <div style="
             display:flex;
             gap:10px;
@@ -677,16 +649,16 @@
 <script src="lista_solicitantes.js"></script>
 
 <script type="module">
-    import { db, storage } from "./firebase.js";
-    import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, serverTimestamp,ref, uploadBytes, getDownloadURL} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { db } from "./firebase.js";
+    import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { carregarNavbar } from "./navbar.js";
 
-    
+
     carregarNavbar();
     const dataList = document.getElementById("listaMembros");
 
 window.LISTA_SOLICITANTES.forEach(nome => {
-    
+
     const option = document.createElement("option");
     option.value = nome;
 
@@ -866,15 +838,15 @@ snapInspecao.forEach(d => {
     inspecaoIdGlobal = d.id;
     inspecaoGlobal = d.data();
 });
-        
-       
+
+
 
 
         if (!inspecaoIdGlobal) return;
 
         const qItens = query(collection(db, "naoConformidades"), where("inspecaoId", "==", inspecaoIdGlobal));
         const snapItens = await getDocs(qItens);
-        
+
         const container = document.getElementById("itens");
         container.innerHTML = "";
         itens = [];
@@ -1019,7 +991,7 @@ function renderizarChecklist(container) {
         const div = document.createElement("div");
         const statusClasse = item.status_manutencao === 'concluido' ? 'concluido' : (item.status_manutencao === 'nao_realizado' ? 'nao-realizado' : '');
         div.className = `item-container ${item.origem === 'manual' ? '' : 'automatico'} ${statusClasse}`;
-        
+
         const fotosHTML = (item.fotos || []).map(url => `<img src="${url}" onclick="abrirImagem('${url}')">`).join("");
         const desabilitado = !podeMexerItens(implemento.status);
 
@@ -1271,54 +1243,12 @@ window.abrirModalNC = function() {
     document.getElementById("novoEixo").value = "";
     document.getElementById("novoLado").value = "";
     document.getElementById("novoCompartimento").value = "";
-
-    document.getElementById("novoTipo").value = "avaria";
-
-    document.getElementById("novasFotos").value = "";
 };
 
 window.fecharModalNC = function() {
 
     document.getElementById("modalNC").style.display = "none";
 };
-
-async function comprimirImagem(file, qualidade = 0.7, larguraMax = 1600) {
-
-    return new Promise((resolve) => {
-
-        const img = new Image();
-
-        img.onload = () => {
-
-            let largura = img.width;
-            let altura = img.height;
-
-            if (largura > larguraMax) {
-                altura = altura * (larguraMax / largura);
-                largura = larguraMax;
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = largura;
-            canvas.height = altura;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, largura, altura);
-
-            canvas.toBlob(
-                (blob) => {
-                    resolve(blob);
-                },
-                "image/jpeg",
-                qualidade
-            );
-        };
-
-        img.src = URL.createObjectURL(file);
-
-    });
-
-}
 
 window.salvarNovaNC = async function() {
 
@@ -1330,49 +1260,12 @@ window.salvarNovaNC = async function() {
 
     const compartimento = document.getElementById("novoCompartimento").value.trim();
 
-const tipo = document.getElementById("novoTipo").value;
-
-const arquivos = document.getElementById("novasFotos").files;
-
     if (!descricao) {
 
         alert("Informe a descrição.");
 
         return;
     }
-
-if (arquivos.length > 3) {
-
-    alert("Máximo permitido: 3 fotos.");
-
-    return;
-
-}
-
-const fotos = [];
-
-for (const arquivo of arquivos) {
-
-    const imagemComprimida = await comprimirImagem(arquivo);
-
-    const nome =
-        Date.now() +
-        "_" +
-        Math.random().toString(36).substring(2) +
-        ".jpg";
-
-    const referencia = ref(
-        storage,
-        "naoConformidades/" + nome
-    );
-
-    await uploadBytes(referencia, imagemComprimida);
-
-    const url = await getDownloadURL(referencia);
-
-    fotos.push(url);
-
-}
 
     try {
 
@@ -1387,10 +1280,6 @@ for (const arquivo of arquivos) {
             lado,
 
             compartimento,
-         
-            tipo,
-   
-            fotos,
 
             origem: "manual",
 
@@ -1430,7 +1319,7 @@ window.finalizar = async function() {
     if (confirm("Deseja finalizar a manutenção e enviar o relatório por e-mail?")) {
         try {
             // --- LÓGICA DE DESTINATÁRIOS (REVISADA) ---
-            
+
             // 1. Pegamos o tipo e limpamos espaços ou letras maiúsculas
             const tipoOriginal = implemento.tipo || "";
             const tipoLimpo = tipoOriginal.trim().toLowerCase();
@@ -1444,7 +1333,7 @@ window.finalizar = async function() {
             "prancha": "cleider1000@hotmail.com",
             "comboio": "cleider1000@hotmail.com",
             "cavalo": "cleider1000@hotmail.com"
-                
+
                 // Importante: aqui as chaves devem estar em MINÚSCULAS
             };
 
@@ -1506,7 +1395,7 @@ window.finalizar = async function() {
             pdf.text("ITENS CONCLUÍDOS:", 10, y);
             y += 8;
             pdf.setFont("helvetica", "normal");
-            
+
             realizados.forEach(item => {
                 const loc = [item.eixo, item.lado, item.compartimento].filter(Boolean).join(" - ");
                 pdf.text(`• ${item.descricao} ${loc ? `(${loc})` : ""}`, 15, y);
