@@ -677,8 +677,8 @@
 <script src="lista_solicitantes.js"></script>
 
 <script type="module">
-    import { db } from "./firebase.js";
-    import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { db, storage } from "./firebase.js";
+    import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, serverTimestamp,ref, uploadBytes, getDownloadURL} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { carregarNavbar } from "./navbar.js";
 
     
