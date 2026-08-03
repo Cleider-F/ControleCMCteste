@@ -394,6 +394,7 @@
     id="foto" 
     accept="image/*"
     capture="environment"
+    multiple
 />
                 <img id="preview" class="preview" style="display:none;">
             </div>
@@ -440,7 +441,8 @@
     let planoComboioPrev = [];
     let planoCarregado = false;
     let naoConformidades = [];
-    let fotoFile = null;
+    let fotosSelecionadas = [];
+    let alteracoesPendentes = false;
     const placaInput = document.getElementById("placa");
     const descricaoInput = document.getElementById("descricao");
     const sugestoesDescricaoEl = document.getElementById("sugestoesDescricao");
@@ -476,7 +478,7 @@
     };
 
     // --- LÓGICA DE INTERFACE ---
-    document.getElementById("tipo").addEventListener("change", (e) => {
+        document.getElementById("tipo").addEventListener("change", (e) => {
         const tipo = e.target.value;
         const cfg = configTipo[tipo] || {};
         kmField.style.display = cfg.km ? "block" : "none";
@@ -484,11 +486,33 @@
         compartimentosField.style.display = cfg.compartimentos ? "block" : "none";
         compartimentoItem.style.display = cfg.compartimentos ? "block" : "none";
         verificarChecklistAutomatico();
-    });
+            });
 
     document.getElementById("horimetro").addEventListener("input", verificarChecklistAutomatico);
     document.getElementById("tipo").addEventListener("change", verificarChecklistAutomatico);
     document.getElementById("tipoManutencao").addEventListener("change", verificarChecklistAutomatico);
+
+    [
+    "placa",
+    "tipo",
+    "tipoManutencao",
+    "km",
+    "horimetro",
+    "compartimentos"
+].forEach(id => {
+
+    const campo = document.getElementById(id);
+
+    if (campo) {
+
+        campo.addEventListener("input", marcarAlteracao);
+
+        campo.addEventListener("change", marcarAlteracao);
+
+    }
+
+});
+
     placaInput.addEventListener("blur", () => {
         placaInput.value = normalizarPlacaGo(placaInput.value);
     });
@@ -792,14 +816,28 @@ function gerarChecklistPlataforma(horimetro) {
 }
 
     // --- GERENCIAMENTO DE FOTOS E ITENS ---
-    foto.addEventListener("change", (e) => {
-        fotoFile = e.target.files[0];
-        if (!fotoFile) return;
-        preview.src = URL.createObjectURL(fotoFile);
-        preview.style.display = "block";
-    });
+foto.addEventListener("change", (e) => {
 
-    let eixoSelecionado = "N/A";
+    fotosSelecionadas = [...e.target.files];
+
+    if (fotosSelecionadas.length > 3) {
+        alert("Você pode selecionar no máximo 3 fotos.");
+        foto.value = "";
+        fotosSelecionadas = [];
+        preview.style.display = "none";
+        return;
+    }
+
+    if (fotosSelecionadas.length > 0) {
+        preview.src = URL.createObjectURL(fotosSelecionadas[0]);
+        preview.style.display = "block";
+    } else {
+        preview.style.display = "none";
+    }
+marcarAlteracao();
+});
+
+let eixoSelecionado = "N/A";
 let ladoSelecionado = "N/A";
 let tipoSelecionado = "normal";
 let compartimentoSelecionado = 1;
@@ -838,24 +876,29 @@ document.querySelectorAll(".btn-opcao").forEach(btn => {
         if (!desc || !eixo || !lado) return alert("Preencha Descrição, Eixo e Lado");
 
         let fotos = [];
-// Localize este trecho dentro de window.adicionarItem e substitua:
-if (fotoFile) {
-    const storageRef = ref(storage, "avarias/" + Date.now() + ".jpg");
-    
-    // NOVO: Comprime a imagem antes de enviar
-    const fotoOtimizada = await comprimirImagem(fotoFile);
-    
-    // Envia o arquivo otimizado em vez do original
+
+for (const arquivo of fotosSelecionadas) {
+
+    const storageRef = ref(
+        storage,
+        `avarias/${Date.now()}_${Math.random().toString(36).substring(2)}.jpg`
+    );
+
+    const fotoOtimizada = await comprimirImagem(arquivo);
+
     await uploadBytes(storageRef, fotoOtimizada);
+
     const url = await getDownloadURL(storageRef);
+
     fotos.push(url);
+
 }
         naoConformidades.push({
             grupo: "MANUAL", descricao: desc, eixo: eixo, lado: lado, tipo: tipo,
             compartimento: comp ? Number(comp) : null,
             fotos: fotos, resolvido: false, origem: "manual"
         });
-
+        marcarAlteracao();
         limparCamposItem();
         renderLista();
         salvarSugestaoDescricao(desc);
@@ -1010,10 +1053,15 @@ function renderLista() {
     });
 }
 
-    window.removerItem = (i) => {
-        naoConformidades.splice(i, 1);
-        renderLista();
-    };
+window.removerItem = (i) => {
+
+    naoConformidades.splice(i, 1);
+
+    marcarAlteracao();
+
+    renderLista();
+
+};
 
     // --- FINALIZAÇÃO ---
     window.criar = async function() {
@@ -1106,7 +1154,7 @@ for (const item of naoConformidades) {
   contadorNc++;
 }
 
-
+            limparAlteracao();
             alert("Inspeção Criada com sucesso!");
             location.href = "detalhe.html?id=" + implementoRef.id;
         } catch (e) {
@@ -1116,6 +1164,46 @@ for (const item of naoConformidades) {
             btn.innerText = "✅ Finalizar Inspeção";
         }
     };
+
+    function marcarAlteracao() {
+    alteracoesPendentes = true;
+}
+
+function limparAlteracao() {
+    alteracoesPendentes = false;
+}
+
+window.addEventListener("beforeunload", (e) => {
+
+    if (!alteracoesPendentes) return;
+
+    e.preventDefault();
+    e.returnValue = "";
+
+});
+
+history.pushState(null, "", location.href);
+
+window.addEventListener("popstate", () => {
+
+    if (!alteracoesPendentes)
+        return;
+
+    const sair = confirm(
+        "Existe uma inspeção em andamento.\n\nDeseja realmente sair?"
+    );
+
+    if (sair) {
+
+        history.back();
+
+    } else {
+
+        history.pushState(null, "", location.href);
+
+    }
+
+});
 
     function getUsuarioLogado() {
         const user = auth.currentUser;
@@ -1274,7 +1362,7 @@ for (const item of naoConformidades) {
         esconderSugestoesDescricao();
         document.getElementById("foto").value = "";
         document.getElementById("preview").style.display = "none";
-        fotoFile = null;
+        fotosSelecionadas = [];
     }
 
     // Função para reduzir o tamanho da imagem antes do upload
