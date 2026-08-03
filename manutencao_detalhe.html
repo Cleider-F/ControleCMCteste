@@ -622,6 +622,43 @@
             "
         >
 
+        <!-- Tipo do item -->
+<label style="font-weight:bold; display:block; margin-bottom:5px;">
+Tipo do Item
+</label>
+
+<select
+    id="novoTipo"
+    style="
+        width:100%;
+        padding:12px;
+        border-radius:10px;
+        border:1px solid #ccc;
+        margin-bottom:15px;
+    "
+>
+    <option value="normal">🟢 Normal</option>
+    <option value="avaria" selected>🔴 Avaria</option>
+</select>
+
+<!-- Fotos -->
+
+<label style="font-weight:bold; display:block; margin-bottom:5px;">
+Fotos (Máximo 3)
+</label>
+
+<input
+    type="file"
+    id="novasFotos"
+    accept="image/*"
+    capture="environment"
+    multiple
+    style="
+        width:100%;
+        margin-bottom:15px;
+    "
+>
+
         <div style="
             display:flex;
             gap:10px;
@@ -649,16 +686,17 @@
 <script src="lista_solicitantes.js"></script>
 
 <script type="module">
-    import { db } from "./firebase.js";
+    import { db, storage } from "./firebase.js";
     import { doc, getDoc, addDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
     import { carregarNavbar } from "./navbar.js";
 
-
+    
     carregarNavbar();
     const dataList = document.getElementById("listaMembros");
 
 window.LISTA_SOLICITANTES.forEach(nome => {
-
+    
     const option = document.createElement("option");
     option.value = nome;
 
@@ -838,15 +876,15 @@ snapInspecao.forEach(d => {
     inspecaoIdGlobal = d.id;
     inspecaoGlobal = d.data();
 });
-
-
+        
+       
 
 
         if (!inspecaoIdGlobal) return;
 
         const qItens = query(collection(db, "naoConformidades"), where("inspecaoId", "==", inspecaoIdGlobal));
         const snapItens = await getDocs(qItens);
-
+        
         const container = document.getElementById("itens");
         container.innerHTML = "";
         itens = [];
@@ -991,16 +1029,38 @@ function renderizarChecklist(container) {
         const div = document.createElement("div");
         const statusClasse = item.status_manutencao === 'concluido' ? 'concluido' : (item.status_manutencao === 'nao_realizado' ? 'nao-realizado' : '');
         div.className = `item-container ${item.origem === 'manual' ? '' : 'automatico'} ${statusClasse}`;
-
+        
         const fotosHTML = (item.fotos || []).map(url => `<img src="${url}" onclick="abrirImagem('${url}')">`).join("");
         const desabilitado = !podeMexerItens(implemento.status);
 
         div.innerHTML = `
             <div class="item-row">
                 <div class="item-info">
-                    <strong class="${item.status_manutencao === 'concluido' ? 'resolvido' : ''}">${item.descricao}</strong>
-                    <small>${item.eixo ? `Eixo: ${item.eixo} | ` : ''} ${item.lado ? `Lado: ${item.lado}` : ''}</small>
-                    <div class="fotos">${fotosHTML}</div>
+                    <strong class="${item.status_manutencao === 'concluido' ? 'resolvido' : ''}">
+    ${item.descricao}
+</strong>
+
+${
+    item.tipo
+        ? `
+        <div style="margin:6px 0;">
+            <span class="badge" style="
+                background:${item.tipo === "normal" ? "#4caf50" : "#f44336"};
+            ">
+                ${item.tipo === "normal" ? "🟢 NORMAL" : "🔴 AVARIA"}
+            </span>
+        </div>
+        `
+        : ""
+}
+
+<small>
+    ${item.eixo ? `Eixo: ${item.eixo} | ` : ''}
+    ${item.lado ? `Lado: ${item.lado}` : ''}
+    ${item.compartimento ? ` | Compartimento: ${item.compartimento}` : ''}
+</small>
+
+<div class="fotos">${fotosHTML}</div>
                 </div>
                 <div class="acoes-container">
                     <button class="btn-acao-item btn-check ${item.status_manutencao === 'concluido' ? 'ativo' : ''}" 
@@ -1243,6 +1303,8 @@ window.abrirModalNC = function() {
     document.getElementById("novoEixo").value = "";
     document.getElementById("novoLado").value = "";
     document.getElementById("novoCompartimento").value = "";
+    document.getElementById("novoTipo").value = "avaria";
+    document.getElementById("novasFotos").value = "";
 };
 
 window.fecharModalNC = function() {
@@ -1267,7 +1329,33 @@ window.salvarNovaNC = async function() {
         return;
     }
 
-    try {
+    const tipo = document.getElementById("novoTipo").value;
+
+const arquivos = [...document.getElementById("novasFotos").files];
+
+if (arquivos.length > 3) {
+
+    alert("Máximo de 3 fotos.");
+
+    return;
+
+}
+
+const fotos = [];
+
+    try {for (const arquivo of arquivos) {
+
+    const caminho = `naoConformidades/${Date.now()}_${arquivo.name}`;
+
+    const referencia = ref(storage, caminho);
+
+    await uploadBytes(referencia, arquivo);
+
+    const url = await getDownloadURL(referencia);
+
+    fotos.push(url);
+
+}
 
         await addDoc(collection(db, "naoConformidades"), {
 
@@ -1280,6 +1368,10 @@ window.salvarNovaNC = async function() {
             lado,
 
             compartimento,
+
+            tipo,
+
+            fotos,
 
             origem: "manual",
 
@@ -1301,6 +1393,8 @@ window.salvarNovaNC = async function() {
 
         alert("Erro ao adicionar não conformidade.");
     }
+
+    
 };
 
 window.finalizar = async function() {
@@ -1319,7 +1413,7 @@ window.finalizar = async function() {
     if (confirm("Deseja finalizar a manutenção e enviar o relatório por e-mail?")) {
         try {
             // --- LÓGICA DE DESTINATÁRIOS (REVISADA) ---
-
+            
             // 1. Pegamos o tipo e limpamos espaços ou letras maiúsculas
             const tipoOriginal = implemento.tipo || "";
             const tipoLimpo = tipoOriginal.trim().toLowerCase();
@@ -1333,7 +1427,7 @@ window.finalizar = async function() {
             "prancha": "cleider1000@hotmail.com",
             "comboio": "cleider1000@hotmail.com",
             "cavalo": "cleider1000@hotmail.com"
-
+                
                 // Importante: aqui as chaves devem estar em MINÚSCULAS
             };
 
@@ -1395,7 +1489,7 @@ window.finalizar = async function() {
             pdf.text("ITENS CONCLUÍDOS:", 10, y);
             y += 8;
             pdf.setFont("helvetica", "normal");
-
+            
             realizados.forEach(item => {
                 const loc = [item.eixo, item.lado, item.compartimento].filter(Boolean).join(" - ");
                 pdf.text(`• ${item.descricao} ${loc ? `(${loc})` : ""}`, 15, y);
