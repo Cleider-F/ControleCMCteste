@@ -458,7 +458,7 @@
     ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev]) => {
         planoComboio = dataComboio;
         planoCarreta = dataCarreta;
-        planoCavPrancha = dataPrancha;
+        planoCavPrancha = dataCavPrancha;
         planoPlataforma = dataPlataforma;
         planoPrancha = dataPrancha;
         planoCavalo = dataCavalo;   
@@ -530,6 +530,26 @@
                 novosItens = gerarChecklistComboio(horimetroVal);
             }
         }
+        else if (tipoImp === "cavprancha") {
+
+    if (
+        (tipoManut === "revisao" || tipoManut === "preventiva") &&
+        horimetroVal > 0
+    ) {
+        novosItens = gerarChecklistCavPrancha(horimetroVal);
+    }
+
+}
+else if (tipoImp === "plataforma") {
+
+    if (
+        (tipoManut === "revisao" || tipoManut === "preventiva") &&
+        horimetroVal > 0
+    ) {
+        novosItens = gerarChecklistPlataforma(horimetroVal);
+    }
+
+}
 
         const manuais = naoConformidades.filter(i => i.origem === "manual");
         naoConformidades = [...manuais, ...novosItens];
@@ -681,14 +701,14 @@ function gerarChecklistComboioPrev(tipo) {
         .filter(Boolean);
 }
 
-function gerarChecklistCavprancha(horimetro) {
+function gerarChecklistCavPrancha(horimetro) {
 
     if (!horimetro || horimetro <= 0)
         return [];
 
     const todasHoras = [
         ...new Set(
-            planoCavprancha.flatMap(item =>
+            planoCavPrancha.flatMap(item =>
                 item.horas.map(h => h.hora)
             )
         )
@@ -701,7 +721,7 @@ function gerarChecklistCavprancha(horimetro) {
     if (!marco)
         return [];
 
-    return planoCavprancha
+    return planoCavPrancha
         .map(item => {
 
             const acao = item.horas.find(h => h.hora === marco);
