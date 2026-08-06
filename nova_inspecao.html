@@ -1301,53 +1301,113 @@ window.addEventListener("popstate", () => {
         }
     }
 
-        function renderSugestoesDescricao() {
-        const termo = normalizarTextoBusca(descricaoInput.value);
-        if (termo.length < 2) {
-            esconderSugestoesDescricao();
-            return;
-        }
+function renderSugestoesDescricao() {
+
+    const termo = normalizarTextoBusca(descricaoInput.value);
+
+    if (termo.length < 2) {
+        esconderSugestoesDescricao();
+        return;
     }
-    function renderSugestoesPlaca() {
+
+    const resultados = sugestoesDescricao
+        .map(descricao => ({
+            descricao,
+            score: calcularSimilaridadeDescricao(
+                termo,
+                normalizarTextoBusca(descricao)
+            )
+        }))
+        .filter(item =>
+            item.score > 0 &&
+            normalizarTextoBusca(item.descricao) !== termo
+        )
+        .sort((a, b) =>
+            b.score - a.score ||
+            a.descricao.localeCompare(b.descricao, "pt-BR")
+        )
+        .slice(0, 6);
+
+    if (!resultados.length) {
+        esconderSugestoesDescricao();
+        return;
+    }
+
+    sugestoesDescricaoEl.innerHTML = resultados.map(item => `
+        <button
+            type="button"
+            class="sugestao-descricao-item"
+            data-descricao="${escapeAttr(item.descricao)}">
+            ${escapeHTML(item.descricao)}
+        </button>
+    `).join("");
+
+    sugestoesDescricaoEl.classList.add("ativo");
+
+    sugestoesDescricaoEl
+        .querySelectorAll(".sugestao-descricao-item")
+        .forEach(btn => {
+
+            btn.addEventListener("click", () => {
+
+                descricaoInput.value = btn.dataset.descricao;
+
+                esconderSugestoesDescricao();
+
+                descricaoInput.focus();
+
+            });
+
+        });
+
+}    
+
+function renderSugestoesPlaca() {
 
     const termo = placaInput.value
         .trim()
         .toUpperCase();
 
     if (termo.length < 2) {
-
         esconderSugestoesPlaca();
-
         return;
-
     }
 
     const resultados = frotas
-        .filter(f =>
-            String(f.frota)
-                .toUpperCase()
-                .includes(termo)
-        )
+        .filter(f => {
+
+            const frota = String(f.frota || "").toUpperCase();
+            const placa = String(f.placa || "").toUpperCase();
+
+            return (
+                frota.includes(termo) ||
+                placa.includes(termo)
+            );
+
+        })
         .slice(0, 8);
 
     if (!resultados.length) {
-
         esconderSugestoesPlaca();
-
         return;
-
     }
 
-    sugestoesPlacaEl.innerHTML = resultados
-        .map(f => `
+    sugestoesPlacaEl.innerHTML = resultados.map(f => {
+
+        const texto = f.placa
+            ? `${f.frota} - ${f.placa}`
+            : f.frota;
+
+        return `
             <button
                 type="button"
                 class="sugestao-descricao-item"
-                data-frota="${f.frota}">
-                ${f.frota}
+                data-frota="${escapeAttr(f.frota)}">
+                ${escapeHTML(texto)}
             </button>
-        `)
-        .join("");
+        `;
+
+    }).join("");
 
     sugestoesPlacaEl.classList.add("ativo");
 
@@ -1365,37 +1425,7 @@ window.addEventListener("popstate", () => {
 
         });
 
-}
-
-        const resultados = sugestoesDescricao
-            .map(descricao => ({
-                descricao,
-                score: calcularSimilaridadeDescricao(termo, normalizarTextoBusca(descricao))
-            }))
-            .filter(item => item.score > 0 && normalizarTextoBusca(item.descricao) !== termo)
-            .sort((a, b) => b.score - a.score || a.descricao.localeCompare(b.descricao, "pt-BR"))
-            .slice(0, 6);
-
-        if (!resultados.length) {
-            esconderSugestoesDescricao();
-            return;
-        }
-
-        sugestoesDescricaoEl.innerHTML = resultados.map(item => `
-            <button type="button" class="sugestao-descricao-item" data-descricao="${escapeAttr(item.descricao)}">
-                ${escapeHTML(item.descricao)}
-            </button>
-        `).join("");
-
-        sugestoesDescricaoEl.classList.add("ativo");
-        sugestoesDescricaoEl.querySelectorAll(".sugestao-descricao-item").forEach(btn => {
-            btn.addEventListener("click", () => {
-                descricaoInput.value = btn.dataset.descricao;
-                esconderSugestoesDescricao();
-                descricaoInput.focus();
-            });
-        });
-
+}    
 
     function esconderSugestoesDescricao() {
         sugestoesDescricaoEl.classList.remove("ativo");
