@@ -1301,13 +1301,13 @@ window.addEventListener("popstate", () => {
         }
     }
 
-    function renderSugestoesDescricao() {
+        function renderSugestoesDescricao() {
         const termo = normalizarTextoBusca(descricaoInput.value);
         if (termo.length < 2) {
             esconderSugestoesDescricao();
             return;
         }
-    
+    }
     function renderSugestoesPlaca() {
 
     const termo = placaInput.value
@@ -1395,7 +1395,7 @@ window.addEventListener("popstate", () => {
                 descricaoInput.focus();
             });
         });
-    }
+
 
     function esconderSugestoesDescricao() {
         sugestoesDescricaoEl.classList.remove("ativo");
