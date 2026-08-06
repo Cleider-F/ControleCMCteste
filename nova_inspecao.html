@@ -236,9 +236,21 @@
         <div class="card">
             <h3>EQUIPAMENTO</h3>
             <div class="form-group">
-                <label>GO ou Placa</label>
-                <input id="placa" placeholder="Ex: ABC-1234">
-            </div>
+    <label>GO ou Placa</label>
+
+    <div class="sugestao-wrapper">
+        <input
+            id="placa"
+            placeholder="Ex: GO1234 ou ABC-1234"
+            autocomplete="off">
+
+        <div
+            id="sugestoesPlaca"
+            class="sugestoes-descricao">
+        </div>
+    </div>
+
+</div>
 
             <div class="grid-2">
                 <div class="form-group">
@@ -446,6 +458,9 @@
     const placaInput = document.getElementById("placa");
     const descricaoInput = document.getElementById("descricao");
     const sugestoesDescricaoEl = document.getElementById("sugestoesDescricao");
+    const sugestoesPlacaEl = document.getElementById("sugestoesPlaca");
+
+    let frotas = [];
     let sugestoesDescricao = [];
 
     // --- CARREGAMENTO DOS PLANOS ---
@@ -456,8 +471,11 @@
         fetch("./plano_manutencao_plataforma.json").then(res => res.json()).catch(() => []),
         fetch("./plano_manutencao_prancha.json").then(res => res.json()).catch(() => []),
         fetch("./plano_manutencao_cavalo.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_comboio_preventiva.json").then(res => res.json()).catch(() => [])
-    ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev]) => {
+        fetch("./plano_manutencao_comboio_preventiva.json").then(res => res.json()).catch(() => []),
+        fetch("./frotas.json")
+    .then(res => res.json())
+    .catch(() => [])
+    ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev, dataFrotas]) => {
         planoComboio = dataComboio;
         planoCarreta = dataCarreta;
         planoCavPrancha = dataCavPrancha;
@@ -465,6 +483,7 @@
         planoPrancha = dataPrancha;
         planoCavalo = dataCavalo;   
         planoComboioPrev = dataCombPrev;
+        frotas = dataFrotas;
         planoCarregado = true;
     });
 
@@ -516,13 +535,21 @@
     placaInput.addEventListener("blur", () => {
         placaInput.value = normalizarPlacaGo(placaInput.value);
     });
+    placaInput.addEventListener("input", renderSugestoesPlaca);
+    placaInput.addEventListener("focus", renderSugestoesPlaca);
     descricaoInput.addEventListener("input", renderSugestoesDescricao);
     descricaoInput.addEventListener("focus", renderSugestoesDescricao);
     document.addEventListener("click", (event) => {
-        if (!event.target.closest(".sugestao-wrapper")) esconderSugestoesDescricao();
-    });
 
-    carregarSugestoesDescricao();
+    if (!event.target.closest(".sugestao-wrapper")) {
+
+        esconderSugestoesDescricao();
+
+        esconderSugestoesPlaca();
+
+    }
+
+});
 
     function verificarChecklistAutomatico() {
 
@@ -1280,6 +1307,65 @@ window.addEventListener("popstate", () => {
             esconderSugestoesDescricao();
             return;
         }
+    
+    function renderSugestoesPlaca() {
+
+    const termo = placaInput.value
+        .trim()
+        .toUpperCase();
+
+    if (termo.length < 2) {
+
+        esconderSugestoesPlaca();
+
+        return;
+
+    }
+
+    const resultados = frotas
+        .filter(f =>
+            String(f.frota)
+                .toUpperCase()
+                .includes(termo)
+        )
+        .slice(0, 8);
+
+    if (!resultados.length) {
+
+        esconderSugestoesPlaca();
+
+        return;
+
+    }
+
+    sugestoesPlacaEl.innerHTML = resultados
+        .map(f => `
+            <button
+                type="button"
+                class="sugestao-descricao-item"
+                data-frota="${f.frota}">
+                ${f.frota}
+            </button>
+        `)
+        .join("");
+
+    sugestoesPlacaEl.classList.add("ativo");
+
+    sugestoesPlacaEl
+        .querySelectorAll(".sugestao-descricao-item")
+        .forEach(btn => {
+
+            btn.addEventListener("click", () => {
+
+                placaInput.value = btn.dataset.frota;
+
+                esconderSugestoesPlaca();
+
+            });
+
+        });
+
+}
 
         const resultados = sugestoesDescricao
             .map(descricao => ({
@@ -1315,6 +1401,14 @@ window.addEventListener("popstate", () => {
         sugestoesDescricaoEl.classList.remove("ativo");
         sugestoesDescricaoEl.innerHTML = "";
     }
+
+    function esconderSugestoesPlaca() {
+
+    sugestoesPlacaEl.classList.remove("ativo");
+
+    sugestoesPlacaEl.innerHTML = "";
+
+}
 
     function calcularSimilaridadeDescricao(termo, descricaoNormalizada) {
         if (!termo || !descricaoNormalizada) return 0;
