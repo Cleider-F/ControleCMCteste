@@ -1930,71 +1930,7 @@ window.finalizar = async function() {
         );
 
         pdf.save(nomeArquivo);
-
-        alert(
-            "O PDF foi gerado e baixado.\n\n" +
-            "Abra o WhatsApp e anexe o arquivo."
-        );
-
-    } catch (erro) {
-
-        console.error(
-            "ERRO AO COMPARTILHAR PDF:",
-            erro
-        );
-
-        // ==========================================
-        // CANCELAMENTO PELO USUÁRIO
-        // ==========================================
-
-        if (erro?.name === "AbortError") {
-            return;
-        }
-
-        // ==========================================
-        // TENTATIVA DE SALVAMENTO COMO FALLBACK
-        // ==========================================
-
-        try {
-
-            const pdf = await gerarPDFRelatorio();
-
-            const placa = String(
-                implemento?.placa || "Sem_Placa"
-            )
-            .replace(/[\\/:*?"<>|]/g, "-")
-            .trim();
-
-            const nomeArquivo =
-                `Relatorio_Manutencao_${placa}.pdf`;
-
-            pdf.save(nomeArquivo);
-
-            alert(
-                "Não foi possível abrir o compartilhamento do Android.\n\n" +
-                "O PDF foi baixado. Você pode anexá-lo manualmente no WhatsApp."
-            );
-
-        } catch (erroPDF) {
-
-            console.error(
-                "Erro também ao salvar o PDF:",
-                erroPDF
-            );
-
-            alert(
-                "Não foi possível gerar ou compartilhar o PDF."
-            );
-        }
-
-    } finally {
-
-        btn.disabled = false;
-
-        btn.innerText = "📲 WhatsApp";
-    }
-};
-
+manutencao_detalhe.html
 // Adicione esta função para evitar erro nas datas do PDF
 function formatarData(dataBase) {
     if (!dataBase) return "-";
