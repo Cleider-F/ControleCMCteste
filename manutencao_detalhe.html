@@ -1903,34 +1903,72 @@ window.finalizar = async function() {
         // ==========================================
 
         if (
-            navigator.share &&
-            navigator.canShare &&
-            navigator.canShare({
-                files: [arquivo]
-            })
-        ) {
+window.enviarPDFWhatsApp = async function() {
 
-            btn.innerText = "📲 Abrindo compartilhamento...";
+    const btn = document.querySelector(".btn-whatsapp");
 
-            // Compartilha SOMENTE o arquivo.
-            // Isso é mais compatível com Android.
-            await navigator.share({
-                files: [arquivo]
-            });
+    try {
 
-            return;
+        btn.disabled = true;
+        btn.innerText = "⏳ Gerando PDF...";
+
+        console.log("1 - Iniciando geração");
+
+        // Gera o PDF
+        const pdf = await gerarPDFRelatorio();
+
+        console.log("2 - PDF gerado:", pdf);
+
+        if (!pdf) {
+            throw new Error("gerarPDFRelatorio retornou vazio.");
         }
 
-        // ==========================================
-        // 6. FALLBACK
-        // ==========================================
+        btn.innerText = "⏳ Preparando arquivo...";
+
+        // Placa
+        const placa = String(
+            implemento?.placa || "Sem_Placa"
+        )
+        .replace(/[\\/:*?"<>|]/g, "-")
+        .trim();
+
+        const nomeArquivo =
+            `Relatorio_Manutencao_${placa}.pdf`;
 
         console.log(
-            "Compartilhamento de arquivos não suportado."
+            "3 - Nome do arquivo:",
+            nomeArquivo
         );
 
+        // Salva diretamente
         pdf.save(nomeArquivo);
-manutencao_detalhe.html
+
+        console.log("4 - PDF salvo com sucesso");
+
+        alert(
+            "PDF gerado com sucesso!\n\n" +
+            "Verifique a pasta de Downloads do celular."
+        );
+
+    } catch (erro) {
+
+        console.error(
+            "ERRO REAL:",
+            erro
+        );
+
+        alert(
+            "ERRO AO GERAR PDF:\n\n" +
+            (erro?.message || erro)
+        );
+
+    } finally {
+
+        btn.disabled = false;
+        btn.innerText = "📲 WhatsApp";
+
+    }
+};
 // Adicione esta função para evitar erro nas datas do PDF
 function formatarData(dataBase) {
     if (!dataBase) return "-";
