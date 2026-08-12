@@ -1845,16 +1845,32 @@ window.finalizar = async function() {
     try {
 
         btn.disabled = true;
-
         btn.innerText = "⏳ Gerando PDF...";
 
-        // Gera o mesmo PDF do relatório
+        // ==========================================
+        // 1. GERA O MESMO PDF DO RELATÓRIO
+        // ==========================================
+
         const pdf = await gerarPDFRelatorio();
 
-        // Converte para Blob
+        if (!pdf) {
+            throw new Error("O PDF não foi gerado.");
+        }
+
+        // ==========================================
+        // 2. CONVERTE PARA BLOB
+        // ==========================================
+
         const pdfBlob = pdf.output("blob");
 
-        // Nome do arquivo
+        if (!pdfBlob || pdfBlob.size === 0) {
+            throw new Error("O PDF foi gerado vazio.");
+        }
+
+        // ==========================================
+        // 3. DEFINE O NOME DO ARQUIVO
+        // ==========================================
+
         const placa = String(
             implemento?.placa || "Sem_Placa"
         )
@@ -1864,7 +1880,10 @@ window.finalizar = async function() {
         const nomeArquivo =
             `Relatorio_Manutencao_${placa}.pdf`;
 
-        // Cria arquivo real
+        // ==========================================
+        // 4. CRIA O ARQUIVO
+        // ==========================================
+
         const arquivo = new File(
             [pdfBlob],
             nomeArquivo,
@@ -1873,54 +1892,98 @@ window.finalizar = async function() {
             }
         );
 
-        // Verifica se o navegador suporta
-        // compartilhamento de arquivos
+        console.log("PDF criado:", {
+            nome: nomeArquivo,
+            tamanho: arquivo.size,
+            tipo: arquivo.type
+        });
+
+        // ==========================================
+        // 5. VERIFICA SUPORTE AO COMPARTILHAMENTO
+        // ==========================================
+
         if (
-            !navigator.share ||
-            !navigator.canShare ||
-            !navigator.canShare({
+            navigator.share &&
+            navigator.canShare &&
+            navigator.canShare({
                 files: [arquivo]
             })
         ) {
 
-            // Fallback: baixa o PDF
-            pdf.save(nomeArquivo);
+            btn.innerText = "📲 Abrindo compartilhamento...";
 
-            alert(
-                "Seu navegador não permite enviar o PDF diretamente. " +
-                "O arquivo foi baixado. Abra o WhatsApp e anexe o PDF."
-            );
+            // Compartilha SOMENTE o arquivo.
+            // Isso é mais compatível com Android.
+            await navigator.share({
+                files: [arquivo]
+            });
 
             return;
         }
 
-        btn.innerText = "📲 Abrindo WhatsApp...";
+        // ==========================================
+        // 6. FALLBACK
+        // ==========================================
 
-        await navigator.share({
+        console.log(
+            "Compartilhamento de arquivos não suportado."
+        );
 
-            files: [arquivo],
+        pdf.save(nomeArquivo);
 
-            title:
-                `Relatório de Manutenção - ${placa}`,
-
-            text:
-                `Relatório de execução de manutenção - ${placa}`
-
-        });
+        alert(
+            "O PDF foi gerado e baixado.\n\n" +
+            "Abra o WhatsApp e anexe o arquivo."
+        );
 
     } catch (erro) {
 
         console.error(
-            "Erro ao compartilhar PDF:",
+            "ERRO AO COMPARTILHAR PDF:",
             erro
         );
 
-        // Cancelar o compartilhamento
-        // não deve ser tratado como erro grave
-        if (erro.name !== "AbortError") {
+        // ==========================================
+        // CANCELAMENTO PELO USUÁRIO
+        // ==========================================
+
+        if (erro?.name === "AbortError") {
+            return;
+        }
+
+        // ==========================================
+        // TENTATIVA DE SALVAMENTO COMO FALLBACK
+        // ==========================================
+
+        try {
+
+            const pdf = await gerarPDFRelatorio();
+
+            const placa = String(
+                implemento?.placa || "Sem_Placa"
+            )
+            .replace(/[\\/:*?"<>|]/g, "-")
+            .trim();
+
+            const nomeArquivo =
+                `Relatorio_Manutencao_${placa}.pdf`;
+
+            pdf.save(nomeArquivo);
 
             alert(
-                "Não foi possível compartilhar o PDF."
+                "Não foi possível abrir o compartilhamento do Android.\n\n" +
+                "O PDF foi baixado. Você pode anexá-lo manualmente no WhatsApp."
+            );
+
+        } catch (erroPDF) {
+
+            console.error(
+                "Erro também ao salvar o PDF:",
+                erroPDF
+            );
+
+            alert(
+                "Não foi possível gerar ou compartilhar o PDF."
             );
         }
 
