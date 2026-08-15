@@ -236,21 +236,9 @@
         <div class="card">
             <h3>EQUIPAMENTO</h3>
             <div class="form-group">
-    <label>GO ou Placa</label>
-
-    <div class="sugestao-wrapper">
-        <input
-            id="placa"
-            placeholder="Ex: GO1234 ou ABC-1234"
-            autocomplete="off">
-
-        <div
-            id="sugestoesPlaca"
-            class="sugestoes-descricao">
-        </div>
-    </div>
-
-</div>
+                <label>GO ou Placa</label>
+                <input id="placa" placeholder="Ex: ABC-1234">
+            </div>
 
             <div class="grid-2">
                 <div class="form-group">
@@ -261,6 +249,7 @@
                         <option value="prancha">Prancha</option>
                         <option value="comboio">Comboio</option>
                         <option value="cavalo">Cavalo Mecânico</option>
+                        <option value="cavalo_terceiro">Cavalo Mecânico Terceirizado</option>
                         <option value="cavprancha">Cavalo Prancha</option>
                         <option value="plataforma">Plataforma</option>
                     </select>
@@ -275,6 +264,7 @@
                         <option value="cnp">CNP</option>
                         <option value="gm">GM</option>
                         <option value="acidente">Acidente</option>
+                        <option value="terceirizada">Terceirizada</option>
                     </select>
                 </div>
             </div>
@@ -353,14 +343,14 @@
         <button type="button" class="btn-opcao ativo"
             data-grupo="tipo"
             data-value="normal">
-            Normal
+            Visto
         </button>
 
         <button type="button"
             class="btn-opcao avaria"
             data-grupo="tipo"
             data-value="avaria">
-            Avaria
+            X
         </button>
 
     </div>
@@ -406,7 +396,6 @@
     id="foto" 
     accept="image/*"
     capture="environment"
-    multiple
 />
                 <img id="preview" class="preview" style="display:none;">
             </div>
@@ -453,14 +442,10 @@
     let planoComboioPrev = [];
     let planoCarregado = false;
     let naoConformidades = [];
-    let fotosSelecionadas = [];
-    let alteracoesPendentes = false;
+    let fotoFile = null;
     const placaInput = document.getElementById("placa");
     const descricaoInput = document.getElementById("descricao");
     const sugestoesDescricaoEl = document.getElementById("sugestoesDescricao");
-    const sugestoesPlacaEl = document.getElementById("sugestoesPlaca");
-
-    let frotas = [];
     let sugestoesDescricao = [];
 
     // --- CARREGAMENTO DOS PLANOS ---
@@ -471,11 +456,8 @@
         fetch("./plano_manutencao_plataforma.json").then(res => res.json()).catch(() => []),
         fetch("./plano_manutencao_prancha.json").then(res => res.json()).catch(() => []),
         fetch("./plano_manutencao_cavalo.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_comboio_preventiva.json").then(res => res.json()).catch(() => []),
-        fetch("./frotas.json")
-    .then(res => res.json())
-    .catch(() => [])
-    ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev, dataFrotas]) => {
+        fetch("./plano_manutencao_comboio_preventiva.json").then(res => res.json()).catch(() => [])
+    ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev]) => {
         planoComboio = dataComboio;
         planoCarreta = dataCarreta;
         planoCavPrancha = dataCavPrancha;
@@ -483,7 +465,6 @@
         planoPrancha = dataPrancha;
         planoCavalo = dataCavalo;   
         planoComboioPrev = dataCombPrev;
-        frotas = dataFrotas;
         planoCarregado = true;
     });
 
@@ -492,64 +473,40 @@
         prancha: { km: false, horimetro: false, compartimentos: false },
         comboio: { km: true, horimetro: true, compartimentos: false },
         cavalo: { km: true, horimetro: true, compartimentos: false },
+        cavalo_terceiro: { km: false, horimetro: false, compartimentos: false },
         cavprancha: { km: true, horimetro: true, compartimentos: false },
         plataforma: { km: true, horimetro: true, compartimentos: false },
     };
 
     // --- LÓGICA DE INTERFACE ---
-        document.getElementById("tipo").addEventListener("change", (e) => {
+    document.getElementById("tipo").addEventListener("change", (e) => {
         const tipo = e.target.value;
         const cfg = configTipo[tipo] || {};
         kmField.style.display = cfg.km ? "block" : "none";
         horimetroField.style.display = cfg.horimetro ? "block" : "none";
         compartimentosField.style.display = cfg.compartimentos ? "block" : "none";
         compartimentoItem.style.display = cfg.compartimentos ? "block" : "none";
+        if (tipo === "cavalo_terceiro") {
+            document.getElementById("tipoManutencao").value = "terceirizada";
+            naoConformidades = naoConformidades.filter(i => i.origem === "manual");
+            renderLista();
+        }
         verificarChecklistAutomatico();
-            });
+    });
 
     document.getElementById("horimetro").addEventListener("input", verificarChecklistAutomatico);
     document.getElementById("tipo").addEventListener("change", verificarChecklistAutomatico);
     document.getElementById("tipoManutencao").addEventListener("change", verificarChecklistAutomatico);
-
-    [
-    "placa",
-    "tipo",
-    "tipoManutencao",
-    "km",
-    "horimetro",
-    "compartimentos"
-].forEach(id => {
-
-    const campo = document.getElementById(id);
-
-    if (campo) {
-
-        campo.addEventListener("input", marcarAlteracao);
-
-        campo.addEventListener("change", marcarAlteracao);
-
-    }
-
-});
-
     placaInput.addEventListener("blur", () => {
         placaInput.value = normalizarPlacaGo(placaInput.value);
     });
-    placaInput.addEventListener("input", renderSugestoesPlaca);
-    placaInput.addEventListener("focus", renderSugestoesPlaca);
     descricaoInput.addEventListener("input", renderSugestoesDescricao);
     descricaoInput.addEventListener("focus", renderSugestoesDescricao);
     document.addEventListener("click", (event) => {
+        if (!event.target.closest(".sugestao-wrapper")) esconderSugestoesDescricao();
+    });
 
-    if (!event.target.closest(".sugestao-wrapper")) {
-
-        esconderSugestoesDescricao();
-
-        esconderSugestoesPlaca();
-
-    }
-
-});
+    carregarSugestoesDescricao();
 
     function verificarChecklistAutomatico() {
 
@@ -561,6 +518,12 @@
         const horimetroVal = Number(document.getElementById("horimetro").value);
 
         let novosItens = [];
+
+        if (tipoImp === "cavalo_terceiro") {
+            naoConformidades = naoConformidades.filter(i => i.origem === "manual");
+            renderLista();
+            return;
+        }
 
         if (tipoImp === "carreta" && (tipoManut === "revisao" || tipoManut === "preventiva")) {
             novosItens = gerarChecklistCarreta(tipoManut);
@@ -843,28 +806,14 @@ function gerarChecklistPlataforma(horimetro) {
 }
 
     // --- GERENCIAMENTO DE FOTOS E ITENS ---
-foto.addEventListener("change", (e) => {
-
-    fotosSelecionadas = [...e.target.files];
-
-    if (fotosSelecionadas.length > 3) {
-        alert("Você pode selecionar no máximo 3 fotos.");
-        foto.value = "";
-        fotosSelecionadas = [];
-        preview.style.display = "none";
-        return;
-    }
-
-    if (fotosSelecionadas.length > 0) {
-        preview.src = URL.createObjectURL(fotosSelecionadas[0]);
+    foto.addEventListener("change", (e) => {
+        fotoFile = e.target.files[0];
+        if (!fotoFile) return;
+        preview.src = URL.createObjectURL(fotoFile);
         preview.style.display = "block";
-    } else {
-        preview.style.display = "none";
-    }
-marcarAlteracao();
-});
+    });
 
-let eixoSelecionado = "N/A";
+    let eixoSelecionado = "N/A";
 let ladoSelecionado = "N/A";
 let tipoSelecionado = "normal";
 let compartimentoSelecionado = 1;
@@ -903,1579 +852,24 @@ document.querySelectorAll(".btn-opcao").forEach(btn => {
         if (!desc || !eixo || !lado) return alert("Preencha Descrição, Eixo e Lado");
 
         let fotos = [];
-
-for (const arquivo of fotosSelecionadas) {
-
-    const storageRef = ref(
-        storage,
-        `avarias/${Date.now()}_${Math.random().toString(36).substring(2)}.jpg`
-    );
-
-    const fotoOtimizada = await comprimirImagem(arquivo);
-
-    await uploadBytes(storageRef, fotoOtimizada);
-
-    const url = await getDownloadURL(storageRef);
-
-    fotos.push(url);
-
-}
-        naoConformidades.push({
-            grupo: "MANUAL", descricao: desc, eixo: eixo, lado: lado, tipo: tipo,
-            compartimento: comp ? Number(comp) : null,
-            fotos: fotos, resolvido: false, origem: "manual"
-        });
-        marcarAlteracao();
-        limparCamposItem();
-        renderLista();
-        salvarSugestaoDescricao(desc);
-    };
-
-function renderLista() {
-
-    const container = document.getElementById("listaItens");
-    container.innerHTML = "";
-
-    const tipoImplemento = document.getElementById("tipo").value;
-
-    // =========================
-    // AGRUPAMENTO
-    // =========================
-
-    const grupos = {};
-
-    naoConformidades.forEach(item => {
-
-        let grupoPrincipal = item.grupo || "GERAL";
-
-        // 🚛 CARRETA → subdivide por compartimento
-        if (
-            tipoImplemento === "carreta" &&
-            item.origem === "manual"
-        ) {
-
-            const comp = item.compartimento || "SEM COMP.";
-
-            grupoPrincipal = `COMPARTIMENTO ${comp}`;
-        }
-
-        if (!grupos[grupoPrincipal]) {
-            grupos[grupoPrincipal] = [];
-        }
-
-        grupos[grupoPrincipal].push(item);
-    });
-
-    // =========================
-    // ORDENA COMPARTIMENTOS
-    // =========================
-
-    const gruposOrdenados = Object.keys(grupos).sort((a, b) => {
-
-        const numA = parseInt(a.replace(/\D/g, "")) || 999;
-        const numB = parseInt(b.replace(/\D/g, "")) || 999;
-
-        return numA - numB;
-    });
-
-    // =========================
-    // RENDER
-    // =========================
-
-    gruposOrdenados.forEach((nomeGrupo) => {
-
-        const itens = grupos[nomeGrupo];
-
-        const header = document.createElement("div");
-        header.className = "grupo-titulo";
-        header.innerText = nomeGrupo;
-
-        container.appendChild(header);
-
-        itens.forEach(item => {
-
-            const idx = naoConformidades.indexOf(item);
-
-            const corBorda =
-                item.origem === "manual"
-                    ? "var(--warning)"
-                    : "var(--primary)";
-
-            const corBadge =
-                item.origem === "manual"
-                    ? "#fff3e0"
-                    : "#e3f2fd";
-
-            const corTextoBadge =
-                item.origem === "manual"
-                    ? "#e65100"
-                    : "#0d47a1";
-
-            const div = document.createElement("div");
-
-            div.className = "item-lista";
-
-            div.style.borderLeft = `5px solid ${corBorda}`;
-
-            div.innerHTML = `
-                <div class="item-info">
-
-                    <strong>${item.descricao}</strong>
-
-                    <small>
-
-                        <span style="
-                            background:${corBadge};
-                            color:${corTextoBadge};
-                            padding: 2px 6px;
-                            border-radius: 4px;
-                            font-weight: bold;
-                            margin-right: 4px;
-                        ">
-                            ${item.tipo ? item.tipo.toUpperCase() : 'N/A'}
-                        </span>
-
-                        ${item.eixo ? `Eixo: ${item.eixo}` : ''}
-
-                        ${item.lado ? ` | Lado: ${item.lado}` : ''}
-
-                        ${
-                            tipoImplemento !== "carreta" &&
-                            item.compartimento !== null &&
-                            item.compartimento !== undefined
-                            ? ` | Comp: ${item.compartimento}`
-                            : ''
-                        }
-
-                    </small>
-
-                </div>
-
-                <button class="btn-remover-icon"
-                    onclick="removerItem(${idx})">
-
-                    <svg width="24" height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round">
-
-                        <polyline points="3 6 5 6 21 6"></polyline>
-
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-
-                    </svg>
-
-                </button>
-            `;
-
-            container.appendChild(div);
-        });
-    });
-}
-
-window.removerItem = (i) => {
-
-    naoConformidades.splice(i, 1);
-
-    marcarAlteracao();
-
-    renderLista();
-
-};
-
-    // --- FINALIZAÇÃO ---
-    window.criar = async function() {
-        // Trava o botão para evitar cliques duplos
-        const btn = document.getElementById("btnFinal");
-        btn.disabled = true;
-        btn.innerText = "⏳ Salvando...";
-
-        const placaVal = normalizarPlacaGo(placaInput.value);
-        const tipoVal = document.getElementById("tipo").value;
-        const tipoManutencaoVal = document.getElementById("tipoManutencao").value;
-        placaInput.value = placaVal;
-
-        if (!placaVal || !tipoVal || !tipoManutencaoVal) {
-            alert("Preencha os dados obrigatórios (Placa, Tipo e Manutenção)");
-            btn.disabled = false;
-            btn.innerText = "✅ Finalizar Inspeção";
-            return;
-        }
-
-        const usuario = getUsuarioLogado();
-        const dataInfo = formatarDataHora();
-
-        const hoje = new Date();
-
-const dataId =
-  hoje.getFullYear() + "-" +
-  String(hoje.getMonth() + 1).padStart(2, "0") + "-" +
-  String(hoje.getDate()).padStart(2, "0");
-
-const placaLimpa = placaVal
-  .replace(/-/g, "");
-
-const implementoId =
-  `${placaLimpa}_${dataId}`;
-
-        try {
-const implementoRef =
-  doc(db, "implementos", implementoId);
-
-await setDoc(implementoRef, {                placa: placaVal,
-                placaNormalizada: placaVal,
-                placaBusca: placaLimpa,
-                tipo: tipoVal,
-                status: "em_inspecao",
-                dataInspecao: dataInfo.timestamp,
-                dataFormatada: dataInfo.data,
-                horaFormatada: dataInfo.hora,
-                inspecionadoPor: usuario.nome, 
-                inspecionadorEmail: usuario.email,
-                tipoManutencao: tipoManutencaoVal
-            });
-
-const inspecaoRef =
-  doc(db, "inspecoes", implementoId);
-
-await setDoc(inspecaoRef, {
-                implementoId: implementoRef.id,
-                km: Number(document.getElementById("km").value) || null,
-                horimetro: Number(document.getElementById("horimetro").value) || null,
-                compartimentos: Number(document.getElementById("compartimentos").value) || 0,
-                criadoEm: dataInfo.timestamp,
-                data: dataInfo.data,
-                hora: dataInfo.hora,
-                inspecionadoPor: usuario.nome
-            });
-
-let contadorNc = 1;
-
-for (const item of naoConformidades) {
-
-  const descLimpa = item.descricao
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "_")
-    .replace(/[^\w]/g, "");
-
-  const ncId =
-    `${implementoId}_${descLimpa}_${String(contadorNc).padStart(3, "0")}`;
-
-  await setDoc(
-    doc(db, "naoConformidades", ncId),
-    {
-      ...item,
-      inspecaoId: implementoId
-    }
-  );
-
-  contadorNc++;
-}
-
-            limparAlteracao();
-            alert("Inspeção Criada com sucesso!");
-            location.href = "detalhe.html?id=" + implementoRef.id;
-        } catch (e) {
-            console.error(e);
-            alert("Erro ao salvar a inspeção.");
-            btn.disabled = false;
-            btn.innerText = "✅ Finalizar Inspeção";
-        }
-    };
-
-    function marcarAlteracao() {
-    alteracoesPendentes = true;
-}
-
-function limparAlteracao() {
-    alteracoesPendentes = false;
-}
-
-window.addEventListener("beforeunload", (e) => {
-
-    if (!alteracoesPendentes) return;
-
-    e.preventDefault();
-    e.returnValue = "";
-
-});
-
-history.pushState(null, "", location.href);
-
-window.addEventListener("popstate", () => {
-
-    if (!alteracoesPendentes)
-        return;
-
-    const sair = confirm(
-        "Existe uma inspeção em andamento.\n\nDeseja realmente sair?"
-    );
-
-    if (sair) {
-
-        history.back();
-
-    } else {
-
-        history.pushState(null, "", location.href);
-
-    }
-
-});
-
-    function getUsuarioLogado() {
-        const user = auth.currentUser;
-        const nomePadrao = user?.email ? user.email.split('@')[0] : "Desconhecido";
-        return { 
-            nome: user?.displayName || nomePadrao, 
-            email: user?.email || null 
-        };
-    }
-
-    function normalizarPlacaGo(valor) {
-        return String(valor || "")
-            .trim()
-            .toUpperCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^A-Z0-9]+/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/^-|-$/g, "");
-    }
-
-    async function carregarSugestoesDescricao() {
-        try {
-            const snap = await getDocs(collection(db, "sugestoesDescricoesItens"));
-            const unicas = new Map();
-
-            snap.forEach(docSnap => {
-                const data = docSnap.data();
-                const descricao = String(data.descricao || "").trim();
-                const chave = normalizarTextoBusca(descricao);
-                if (descricao && chave && !unicas.has(chave)) {
-                    unicas.set(chave, descricao);
-                }
-            });
-
-            sugestoesDescricao = Array.from(unicas.values())
-                .sort((a, b) => a.localeCompare(b, "pt-BR"));
-        } catch (e) {
-            console.error("Erro ao carregar sugestões de descrição", e);
-        }
-    }
-
-    async function salvarSugestaoDescricao(descricao) {
-        const descricaoLimpa = String(descricao || "").trim();
-        const chave = normalizarTextoBusca(descricaoLimpa)
-            .replace(/\s+/g, "_")
-            .slice(0, 120);
-
-        if (!descricaoLimpa || !chave) return;
-
-        const jaExiste = sugestoesDescricao.some(item =>
-            normalizarTextoBusca(item) === normalizarTextoBusca(descricaoLimpa)
-        );
-
-        if (!jaExiste) {
-            sugestoesDescricao.push(descricaoLimpa);
-            sugestoesDescricao.sort((a, b) => a.localeCompare(b, "pt-BR"));
-        }
-
-        try {
-            await setDoc(doc(db, "sugestoesDescricoesItens", chave), {
-                descricao: descricaoLimpa,
-                descricaoNormalizada: normalizarTextoBusca(descricaoLimpa),
-                atualizadoEm: serverTimestamp()
-            }, { merge: true });
-        } catch (e) {
-            console.error("Erro ao salvar sugestão de descrição", e);
-        }
-    }
-
-function renderSugestoesDescricao() {
-
-    const termo = normalizarTextoBusca(descricaoInput.value);
-
-    if (termo.length < 2) {
-        esconderSugestoesDescricao();
-        return;
-    }
-
-    const resultados = sugestoesDescricao
-        .map(descricao => ({
-            descricao,
-            score: calcularSimilaridadeDescricao(
-                termo,
-                normalizarTextoBusca(descricao)
-            )
-        }))
-        .filter(item =>
-            item.score > 0 &&
-            normalizarTextoBusca(item.descricao) !== termo
-        )
-        .sort((a, b) =>
-            b.score - a.score ||
-            a.descricao.localeCompare(b.descricao, "pt-BR")
-        )
-        .slice(0, 6);
-
-    if (!resultados.length) {
-        esconderSugestoesDescricao();
-        return;
-    }
-
-    sugestoesDescricaoEl.innerHTML = resultados.map(item => `
-        <button
-            type="button"
-            class="sugestao-descricao-item"
-            data-descricao="${escapeAttr(item.descricao)}">
-            ${escapeHTML(item.descricao)}
-        </button>
-    `).join("");
-
-    sugestoesDescricaoEl.classList.add("ativo");
-
-    sugestoesDescricaoEl
-        .querySelectorAll(".sugestao-descricao-item")
-        .forEach(btn => {
-
-            btn.addEventListener("click", () => {
-
-                descricaoInput.value = btn.dataset.descricao;
-
-                esconderSugestoesDescricao();
-
-                descricaoInput.focus();
-
-            });
-
-        });
-
-}    
-
-function renderSugestoesPlaca() {
-
-    const termo = placaInput.value.trim().toUpperCase();
-
-    if (termo.length < 2) {
-        esconderSugestoesPlaca();
-        return;
-    }
-
-    const resultados = frotas
-        .filter(f =>
-            String(f.frota || "")
-                .toUpperCase()
-                .includes(termo)
-        )
-        .slice(0, 8);
-
-    if (!resultados.length) {
-        esconderSugestoesPlaca();
-        return;
-    }
-
-    sugestoesPlacaEl.innerHTML = resultados.map(f => `
-        <button
-            type="button"
-            class="sugestao-descricao-item"
-            data-frota="${f.frota}">
-            ${f.frota}
-        </button>
-    `).join("");
-
-    sugestoesPlacaEl.classList.add("ativo");
-
-    sugestoesPlacaEl.querySelectorAll(".sugestao-descricao-item")
-        .forEach(btn => {
-
-            btn.addEventListener("click", () => {
-
-                const frota = frotas.find(f => String(f.frota) === btn.dataset.frota);
-
-                if (frota) {
-                    preencherDadosFrota(frota);
-                }
-
-                esconderSugestoesPlaca();
-
-            });
-
-        });
-
-}
-
-function preencherDadosFrota(frota) {
-
-    placaInput.value = frota.frota || "";
-
-    // Tipo
-    if (frota.tipo) {
-        document.getElementById("tipo").value = String(frota.tipo).toLowerCase();
-    }
-
-    // Compartimentos
-    if (frota.compartimentos) {
-        document.getElementById("compartimentos").value = frota.compartimentos;
-    }
-
-    // Atualiza os campos visíveis
-    document.getElementById("tipo").dispatchEvent(new Event("change"));
-
-    // Quantidade de eixos
-    const qtdEixos = Number(frota.eixos || 0);
-
-    if (qtdEixos > 0) {
-
-        document.querySelectorAll("#grupoEixo .btn-opcao").forEach(btn => {
-
-            const valor = btn.dataset.value;
-
-            if (valor === "N/A") {
-                btn.style.display = "inline-flex";
-                return;
-            }
-
-            const numero = parseInt(valor);
-
-            btn.style.display = numero <= qtdEixos
-                ? "inline-flex"
-                : "none";
-
-        });
-
-    }
-
-}
-
-    function esconderSugestoesDescricao() {
-        sugestoesDescricaoEl.classList.remove("ativo");
-        sugestoesDescricaoEl.innerHTML = "";
-    }
-
-    function esconderSugestoesPlaca() {
-
-    sugestoesPlacaEl.classList.remove("ativo");
-
-    sugestoesPlacaEl.innerHTML = "";
-
-}
-
-    function calcularSimilaridadeDescricao(termo, descricaoNormalizada) {
-        if (!termo || !descricaoNormalizada) return 0;
-        if (descricaoNormalizada.startsWith(termo)) return 100;
-        if (descricaoNormalizada.includes(termo)) return 80;
-
-        const palavras = termo.split(" ").filter(palavra => palavra.length >= 2);
-        return palavras.reduce((score, palavra) => {
-            return descricaoNormalizada.includes(palavra) ? score + palavra.length : score;
-        }, 0);
-    }
-
-    function normalizarTextoBusca(valor) {
-        return String(valor || "")
-            .trim()
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^\w\s]/g, " ")
-            .replace(/\s+/g, " ");
-    }
-
-    function escapeAttr(value) {
-        return escapeHTML(value).replace(/"/g, "&quot;");
-    }
-
-    function escapeHTML(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-    }
-
-    function formatarDataHora() {
-        const agora = new Date();
-        return {
-            data: agora.toLocaleDateString("pt-BR"),
-            hora: agora.toLocaleTimeString("pt-BR"),
-            timestamp: serverTimestamp()
-        };
-    }
-
-    function limparCamposItem() {
-        descricaoInput.value = "";
-        esconderSugestoesDescricao();
-        document.getElementById("foto").value = "";
-        document.getElementById("preview").style.display = "none";
-        fotosSelecionadas = [];
-    }
-
-    // Função para reduzir o tamanho da imagem antes do upload
-async function comprimirImagem(file, qualidade = 0.7) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1200; 
-                const scaleSize = MAX_WIDTH / img.width;
-                canvas.width = MAX_WIDTH;
-                canvas.height = img.height * scaleSize;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/jpeg', qualidade);
-            };
-        };
-    });
-}
-</script>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <!-- CRUCIAL: Faz o site entender o tamanho da tela do celular -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nova Inspeção - Sistema Integrado</title>
-
-    <style>
-        :root {
-            --dark: #1f2937;
-            --primary: #2196f3;
-            --success: #4caf50;
-            --warning: #ff9800;
-            --danger: #f44336;
-            --bg: #f1f3f6;
-        }
-
-        body { 
-            margin: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg); 
-            color: #333;
-            /* Espaço para não cobrir o conteúdo com a navbar no final */
-            padding-bottom: 90px; 
-        }
-        
-        .topbar { 
-            background: var(--dark); 
-            color: white; 
-            padding: 18px 15px; 
-            font-size: 20px; 
-            font-weight: bold; 
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .container { padding: 15px; }
-
-        .card { 
-            background: white; 
-            border-radius: 12px; 
-            padding: 18px 15px; 
-            margin-bottom: 15px; 
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); 
-        }
-
-        .card h3 { 
-            margin-top: 0; 
-            font-size: 16px; 
-            text-transform: uppercase;
-            color: var(--dark); 
-            border-bottom: 2px solid var(--bg); 
-            padding-bottom: 8px; 
-            margin-bottom: 15px;
-        }
-
-        .form-group { margin-bottom: 15px; }
-        .form-group label { 
-            font-size: 14px; 
-            font-weight: 600; 
-            display: block; 
-            margin-bottom: 6px; 
-            color: #555; 
-        }
-
-        .sugestao-wrapper {
-            position: relative;
-        }
-
-        .sugestoes-descricao {
-            display: none;
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(100% + 4px);
-            z-index: 20;
-            max-height: 220px;
-            overflow-y: auto;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            background: white;
-            box-shadow: 0 12px 28px rgba(0,0,0,0.16);
-        }
-
-        .sugestoes-descricao.ativo {
-            display: block;
-        }
-
-        .sugestao-descricao-item {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 0;
-            background: white;
-            color: #1f2937;
-            box-shadow: none;
-            text-align: left;
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        .sugestao-descricao-item:not(:last-child) {
-            border-bottom: 1px solid #eef2f7;
-        }
-
-        /* Inputs mobile-friendly */
-        input, select { 
-            width: 100%; 
-            padding: 14px; 
-            border-radius: 8px; 
-            border: 1px solid #d1d5db; 
-            box-sizing: border-box; 
-            font-size: 16px; /* Evita zoom automático no iOS */
-            background-color: #f9fafb;
-            color: #333;
-            transition: border-color 0.2s;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-            background-color: #fff;
-        }
-
-        /* Layout em colunas para telas menores */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        /* Botões padronizados */
-        button { 
-            width: 100%; 
-            padding: 16px; 
-            border-radius: 10px; 
-            border: none; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 16px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.1s, opacity 0.2s;
-        }
-
-        button:active { transform: scale(0.98); opacity: 0.9; }
-
-        .btn-primario { background: var(--primary); color: white; margin-top: 8px; }
-        .btn-sucesso { background: var(--success); color: white; margin-top: 20px; font-size: 18px; }
-        
-        .preview { width: 100%; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; object-fit: cover; }
-
-        /* Estilização da listagem dinâmica gerada pelo JS */
-        .grupo-titulo {
-            background: var(--dark);
-            color: white;
-            padding: 10px 12px;
-            border-radius: 6px;
-            margin: 20px 0 10px 0;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .item-lista {
-            background: #fff;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .item-info strong { font-size: 15px; display: block; margin-bottom: 4px;}
-        .item-info small { color: #666; font-size: 13px; line-height: 1.4; }
-        
-        .btn-remover-icon {
-            background: none;
-            color: var(--danger);
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: none;
-            padding: 0;
-        }
-        
-        input[type="file"] {
-            background: #fff;
-            padding: 10px;
-            border: 1px dashed #ccc;
-        }
-
-        .grupo-botoes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.btn-opcao {
-    width: auto;
-    padding: 12px 18px;
-    border-radius: 999px;
-    border: 2px solid #d1d5db;
-    background: white;
-    color: #333;
-    font-size: 15px;
-    font-weight: bold;
-    box-shadow: none;
-}
-
-.btn-opcao.ativo {
-    background: #2196f3;
-    color: white;
-    border-color: #2196f3;
-}
-
-.btn-opcao.avaria.ativo {
-    background: #f44336;
-    border-color: #f44336;
-}
-    </style>
-</head>
-
-<body>
-
-    <div class="topbar">➕ Nova Inspeção</div>
-
-    <div class="container">
-        
-        <!-- CARD 1: DADOS DO IMPLEMENTO -->
-        <div class="card">
-            <h3>EQUIPAMENTO</h3>
-            <div class="form-group">
-    <label>GO ou Placa</label>
-
-    <div class="sugestao-wrapper">
-        <input
-            id="placa"
-            placeholder="Ex: GO1234 ou ABC-1234"
-            autocomplete="off">
-
-        <div
-            id="sugestoesPlaca"
-            class="sugestoes-descricao">
-        </div>
-    </div>
-
-</div>
-
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>Tipo</label>
-                    <select id="tipo">
-                        <option value="">Selecione</option>
-                        <option value="carreta">Carreta</option>
-                        <option value="prancha">Prancha</option>
-                        <option value="comboio">Comboio</option>
-                        <option value="cavalo">Cavalo Mecânico</option>
-                        <option value="cavprancha">Cavalo Prancha</option>
-                        <option value="plataforma">Plataforma</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Manutenção</label>
-                    <select id="tipoManutencao">
-                        <option value="">Selecione</option>
-                        <option value="preventiva">Preventiva</option>
-                        <option value="revisao">Revisão</option>
-                        <option value="cnp">CNP</option>
-                        <option value="gm">GM</option>
-                        <option value="acidente">Acidente</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid-2">
-                <div id="kmField" style="display:none;" class="form-group">
-                    <label>KM</label>
-                    <input id="km" type="number" placeholder="Ex: 120000">
-                </div>
-
-                <div id="horimetroField" style="display:none;" class="form-group">
-                    <label>Horímetro</label>
-                    <input id="horimetro" type="number" placeholder="Ex: 5000">
-                </div>
-            </div>
-
-            <div id="compartimentosField" style="display:none;" class="form-group">
-                <label>Quantidade de compartimentos</label>
-                <input id="compartimentos" type="number" placeholder="Ex: 3">
-            </div>
-        </div>
-
-        <!-- CARD 2: ADICIONAR NÃO CONFORMIDADE MANUAL -->
-        <div class="card">
-            <h3>Novo Item</h3>
-            <div class="form-group">
-                <label>Descrição do Item</label>
-                <div class="sugestao-wrapper">
-                    <input id="descricao" placeholder="Ex: Lâmpada queimada" autocomplete="off">
-                    <div id="sugestoesDescricao" class="sugestoes-descricao"></div>
-                </div>
-            </div>
-
-<!-- EIXO -->
-<div class="form-group">
-    <label>Eixo</label>
-
-    <div class="grupo-botoes" id="grupoEixo">
-
-        <button type="button" class="btn-opcao ativo" data-grupo="eixo" data-value="N/A">N/A</button>
-
-        <button type="button" class="btn-opcao" data-grupo="eixo" data-value="1º Eixo">1º Eixo</button>
-
-        <button type="button" class="btn-opcao" data-grupo="eixo" data-value="2º Eixo">2º Eixo</button>
-
-        <button type="button" class="btn-opcao" data-grupo="eixo" data-value="3º Eixo">3º Eixo</button>
-
-        <button type="button" class="btn-opcao" data-grupo="eixo" data-value="4º Eixo">4º Eixo</button>
-
-    </div>
-</div>
-
-<!-- LADO -->
-<div class="form-group">
-    <label>Lado</label>
-
-    <div class="grupo-botoes" id="grupoLado">
-
-        <button type="button" class="btn-opcao ativo" data-grupo="lado" data-value="N/A">N/A</button>
-
-        <button type="button" class="btn-opcao" data-grupo="lado" data-value="esquerdo">Esquerdo</button>
-
-        <button type="button" class="btn-opcao" data-grupo="lado" data-value="direito">Direito</button>
-
-        <button type="button" class="btn-opcao" data-grupo="lado" data-value="ambos">Ambos</button>
-
-    </div>
-</div>
-
-<!-- TIPO -->
-<div class="form-group">
-    <label>Tipo</label>
-
-    <div class="grupo-botoes" id="grupoTipo">
-
-        <button type="button" class="btn-opcao ativo"
-            data-grupo="tipo"
-            data-value="normal">
-            Normal
-        </button>
-
-        <button type="button"
-            class="btn-opcao avaria"
-            data-grupo="tipo"
-            data-value="avaria">
-            Avaria
-        </button>
-
-    </div>
-</div>
-
-<!-- COMPARTIMENTO -->
-<div id="compartimentoItem" style="display:none;" class="form-group">
-
-    <label>Compartimento</label>
-
-    <div class="grupo-botoes" id="grupoCompartimento">
-
-        <button type="button" class="btn-opcao ativo"
-            data-grupo="compartimento"
-            data-value="1">1</button>
-
-        <button type="button" class="btn-opcao"
-            data-grupo="compartimento"
-            data-value="2">2</button>
-
-        <button type="button" class="btn-opcao"
-            data-grupo="compartimento"
-            data-value="3">3</button>
-
-        <button type="button" class="btn-opcao"
-            data-grupo="compartimento"
-            data-value="4">4</button>
-
-        <button type="button" class="btn-opcao"
-            data-grupo="compartimento"
-            data-value="5">5</button>
-
-        <button type="button" class="btn-opcao"
-            data-grupo="compartimento"
-            data-value="6">6</button>
-
-    </div>
-</div>
-            <div class="form-group">
-                <label>Foto da Evidência</label>
-                <input 
-    type="file" 
-    id="foto" 
-    accept="image/*"
-    capture="environment"
-    multiple
-/>
-                <img id="preview" class="preview" style="display:none;">
-            </div>
-
-            <button class="btn-primario" onclick="adicionarItem()">+ Adicionar à Lista</button>
-        </div>
-        
-        <!-- LISTAGEM -->
-        <div id="listaItens"></div>
-        
-        <!-- BOTÃO FINAL ÚNICO -->
-        <button class="btn-sucesso" id="btnFinal" onclick="criar()">✅ Finalizar Inspeção</button>
-        
-    </div>
-
-<link rel="stylesheet" href="navbar.css">
-
-<script type="module">
-    import { protegerPagina } from "./auth.js";
-    protegerPagina(["inspetor","tecnico"]);
-
-    import { db, storage, auth } from "./firebase.js";
-    import { collection, setDoc, doc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+// Localize este trecho dentro de window.adicionarItem e substitua:
+if (fotoFile) {
+    const storageRef = ref(storage, "avarias/" + Date.now() + ".jpg");
     
-    import { carregarNavbar } from "./navbar.js";
-    carregarNavbar();
-
-
-    const inspetor = new URLSearchParams(window.location.search).get("inspetor");
-    const kmField = document.getElementById("kmField");
-    const horimetroField = document.getElementById("horimetroField");
-    const compartimentosField = document.getElementById("compartimentosField");
-    const compartimentoItem = document.getElementById("compartimentoItem");
-    const foto = document.getElementById("foto");
-    const preview = document.getElementById("preview");
-
-    let planoComboio = [];
-    let planoCarreta = [];
-    let planoPlataforma = [];
-    let planoCavPrancha = [];
-    let planoPrancha = [];
-    let planoCavalo = [];
-    let planoComboioPrev = [];
-    let planoCarregado = false;
-    let naoConformidades = [];
-    let fotosSelecionadas = [];
-    let alteracoesPendentes = false;
-    const placaInput = document.getElementById("placa");
-    const descricaoInput = document.getElementById("descricao");
-    const sugestoesDescricaoEl = document.getElementById("sugestoesDescricao");
-    const sugestoesPlacaEl = document.getElementById("sugestoesPlaca");
-
-    let frotas = [];
-    let sugestoesDescricao = [];
-
-    // --- CARREGAMENTO DOS PLANOS ---
-    Promise.all([
-        fetch("./plano_manutencao.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_carreta.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_cavalo_prancha.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_plataforma.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_prancha.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_cavalo.json").then(res => res.json()).catch(() => []),
-        fetch("./plano_manutencao_comboio_preventiva.json").then(res => res.json()).catch(() => []),
-        fetch("./frotas.json")
-    .then(res => res.json())
-    .catch(() => [])
-    ]).then(([dataComboio, dataCarreta, dataCavPrancha, dataPlataforma, dataPrancha, dataCavalo, dataCombPrev, dataFrotas]) => {
-        planoComboio = dataComboio;
-        planoCarreta = dataCarreta;
-        planoCavPrancha = dataCavPrancha;
-        planoPlataforma = dataPlataforma;
-        planoPrancha = dataPrancha;
-        planoCavalo = dataCavalo;   
-        planoComboioPrev = dataCombPrev;
-        frotas = dataFrotas;
-        planoCarregado = true;
-    });
-
-    const configTipo = {
-        carreta: { km: false, horimetro: false, compartimentos: true },
-        prancha: { km: false, horimetro: false, compartimentos: false },
-        comboio: { km: true, horimetro: true, compartimentos: false },
-        cavalo: { km: true, horimetro: true, compartimentos: false },
-        cavprancha: { km: true, horimetro: true, compartimentos: false },
-        plataforma: { km: true, horimetro: true, compartimentos: false },
-    };
-
-    // --- LÓGICA DE INTERFACE ---
-        document.getElementById("tipo").addEventListener("change", (e) => {
-        const tipo = e.target.value;
-        const cfg = configTipo[tipo] || {};
-        kmField.style.display = cfg.km ? "block" : "none";
-        horimetroField.style.display = cfg.horimetro ? "block" : "none";
-        compartimentosField.style.display = cfg.compartimentos ? "block" : "none";
-        compartimentoItem.style.display = cfg.compartimentos ? "block" : "none";
-        verificarChecklistAutomatico();
-            });
-
-    document.getElementById("horimetro").addEventListener("input", verificarChecklistAutomatico);
-    document.getElementById("tipo").addEventListener("change", verificarChecklistAutomatico);
-    document.getElementById("tipoManutencao").addEventListener("change", verificarChecklistAutomatico);
-
-    [
-    "placa",
-    "tipo",
-    "tipoManutencao",
-    "km",
-    "horimetro",
-    "compartimentos"
-].forEach(id => {
-
-    const campo = document.getElementById(id);
-
-    if (campo) {
-
-        campo.addEventListener("input", marcarAlteracao);
-
-        campo.addEventListener("change", marcarAlteracao);
-
-    }
-
-});
-
-    placaInput.addEventListener("blur", () => {
-        placaInput.value = normalizarPlacaGo(placaInput.value);
-    });
-    placaInput.addEventListener("input", renderSugestoesPlaca);
-    placaInput.addEventListener("focus", renderSugestoesPlaca);
-    descricaoInput.addEventListener("input", renderSugestoesDescricao);
-    descricaoInput.addEventListener("focus", renderSugestoesDescricao);
-    document.addEventListener("click", (event) => {
-
-    if (!event.target.closest(".sugestao-wrapper")) {
-
-        esconderSugestoesDescricao();
-
-        esconderSugestoesPlaca();
-
-    }
-
-});
-
-    function verificarChecklistAutomatico() {
-
-        
-
-        if (!planoCarregado) return;
-        const tipoImp = document.getElementById("tipo").value;
-        const tipoManut = document.getElementById("tipoManutencao").value;
-        const horimetroVal = Number(document.getElementById("horimetro").value);
-
-        let novosItens = [];
-
-        if (tipoImp === "carreta" && (tipoManut === "revisao" || tipoManut === "preventiva")) {
-            novosItens = gerarChecklistCarreta(tipoManut);
-        } else if (tipoImp === "prancha" && (tipoManut === "revisao" || tipoManut === "preventiva")) {
-            novosItens = gerarChecklistPrancha(tipoManut);
-        } else if (tipoImp === "cavalo") {
-
-    if (
-        (tipoManut === "revisao" || tipoManut === "preventiva") &&
-        horimetroVal > 0
-    ) {
-        novosItens = gerarChecklistCavalo(horimetroVal);
-    }
-        } else if (tipoImp === "comboio") {
-            if (tipoManut === "preventiva") {
-                novosItens = gerarChecklistComboioPrev(tipoManut);
-            } else if (tipoManut === "revisao" && horimetroVal > 0) {
-                novosItens = gerarChecklistComboio(horimetroVal);
-            }
-        }
-        else if (tipoImp === "cavprancha") {
-
-    if (
-        (tipoManut === "revisao" || tipoManut === "preventiva") &&
-        horimetroVal > 0
-    ) {
-        novosItens = gerarChecklistCavPrancha(horimetroVal);
-    }
-
-}
-else if (tipoImp === "plataforma") {
-
-    if (
-        (tipoManut === "revisao" || tipoManut === "preventiva") &&
-        horimetroVal > 0
-    ) {
-        novosItens = gerarChecklistPlataforma(horimetroVal);
-    }
-
-}
-
-        const manuais = naoConformidades.filter(i => i.origem === "manual");
-        naoConformidades = [...manuais, ...novosItens];
-        renderLista();
-    }
-
-function gerarChecklistCarreta(tipo) {
-    const itensFiltrados = planoCarreta.filter(p => p.tipoPlano === tipo);
-
-    let checklist = [];
-
-    itensFiltrados.forEach(grupo => {
-        grupo.itens.forEach(item => {
-
-            checklist.push({
-                grupo: grupo.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-
-                tipo: item.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            });
-
-        });
-    });
-
-    return checklist;
-}
-function gerarChecklistPrancha(tipo) {
-    const itensFiltrados = planoPrancha.filter(p => p.tipoPlano === tipo);
-
-    let checklist = [];
-
-    itensFiltrados.forEach(grupo => {
-        grupo.itens.forEach(item => {
-
-            checklist.push({
-                grupo: grupo.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-
-                tipo: item.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            });
-
-        });
-    });
-
-    return checklist;
-}
-function gerarChecklistComboioPrev(tipo) {
-    const itensFiltrados = planoComboioPrev.filter(p => p.tipoPlano === tipo);
-
-    let checklist = [];
-
-    itensFiltrados.forEach(grupo => {
-        grupo.itens.forEach(item => {
-
-            checklist.push({
-                grupo: grupo.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-
-                tipo: item.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            });
-
-        });
-    });
-
-    return checklist;
-}
-    function gerarChecklistComboio(horimetro) {
-        const todasHoras = [...new Set(planoComboio.flatMap(i => i.horas.map(h => h.hora)))].sort((a, b) => a - b);
-        const marco = todasHoras.filter(h => h <= horimetro).pop();
-        if (!marco) return [];
-
-        return planoComboio.map(item => {
-            const acao = item.horas.find(h => h.hora === marco);
-            if (!acao) return null;
-            return {
-                grupo: item.grupo, descricao: item.descricao, eixo: "", lado: "", 
-                tipo: acao.tipo === "T" ? "troca" : "vistoria",
-                fotos: [], resolvido: false, origem: "automatico"
-            };
-        }).filter(Boolean);
-    }
-
-    function gerarChecklistCavalo(horimetro) {
-
-    if (!horimetro || horimetro <= 0)
-        return [];
-
-    const todasHoras = [
-        ...new Set(
-            planoCavalo.flatMap(item =>
-                item.horas.map(h => h.hora)
-            )
-        )
-    ].sort((a, b) => a - b);
-
-    const marco = todasHoras
-        .filter(h => h <= horimetro)
-        .pop();
-
-    if (!marco)
-        return [];
-
-    return planoCavalo
-        .map(item => {
-
-            const acao = item.horas.find(h => h.hora === marco);
-
-            if (!acao)
-                return null;
-
-            return {
-                grupo: item.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-                tipo: acao.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            };
-
-        })
-        .filter(Boolean);
-}
-
-function gerarChecklistCavPrancha(horimetro) {
-
-    if (!horimetro || horimetro <= 0)
-        return [];
-
-    const todasHoras = [
-        ...new Set(
-            planoCavPrancha.flatMap(item =>
-                item.horas.map(h => h.hora)
-            )
-        )
-    ].sort((a, b) => a - b);
-
-    const marco = todasHoras
-        .filter(h => h <= horimetro)
-        .pop();
-
-    if (!marco)
-        return [];
-
-    return planoCavPrancha
-        .map(item => {
-
-            const acao = item.horas.find(h => h.hora === marco);
-
-            if (!acao)
-                return null;
-
-            return {
-                grupo: item.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-                tipo: acao.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            };
-
-        })
-        .filter(Boolean);
-}
-
-function gerarChecklistPlataforma(horimetro) {
-
-    if (!horimetro || horimetro <= 0)
-        return [];
-
-    const todasHoras = [
-        ...new Set(
-            planoPlataforma.flatMap(item =>
-                item.horas.map(h => h.hora)
-            )
-        )
-    ].sort((a, b) => a - b);
-
-    const marco = todasHoras
-        .filter(h => h <= horimetro)
-        .pop();
-
-    if (!marco)
-        return [];
-
-    return planoPlataforma
-        .map(item => {
-
-            const acao = item.horas.find(h => h.hora === marco);
-
-            if (!acao)
-                return null;
-
-            return {
-                grupo: item.grupo,
-                descricao: item.descricao,
-                eixo: "",
-                lado: "",
-                tipo: acao.tipo === "T"
-                    ? "troca"
-                    : "vistoria",
-                fotos: [],
-                resolvido: false,
-                origem: "automatico"
-            };
-
-        })
-        .filter(Boolean);
-}
-
-    // --- GERENCIAMENTO DE FOTOS E ITENS ---
-foto.addEventListener("change", (e) => {
-
-    fotosSelecionadas = [...e.target.files];
-
-    if (fotosSelecionadas.length > 3) {
-        alert("Você pode selecionar no máximo 3 fotos.");
-        foto.value = "";
-        fotosSelecionadas = [];
-        preview.style.display = "none";
-        return;
-    }
-
-    if (fotosSelecionadas.length > 0) {
-        preview.src = URL.createObjectURL(fotosSelecionadas[0]);
-        preview.style.display = "block";
-    } else {
-        preview.style.display = "none";
-    }
-marcarAlteracao();
-});
-
-let eixoSelecionado = "N/A";
-let ladoSelecionado = "N/A";
-let tipoSelecionado = "normal";
-let compartimentoSelecionado = 1;
-
-document.querySelectorAll(".btn-opcao").forEach(btn => {
-
-    btn.addEventListener("click", () => {
-
-        const grupo = btn.dataset.grupo;
-
-        document
-            .querySelectorAll(`[data-grupo="${grupo}"]`)
-            .forEach(b => b.classList.remove("ativo"));
-
-        btn.classList.add("ativo");
-
-        const valor = btn.dataset.value;
-
-        if (grupo === "eixo") eixoSelecionado = valor;
-        if (grupo === "lado") ladoSelecionado = valor;
-        if (grupo === "tipo") tipoSelecionado = valor;
-        if (grupo === "compartimento") {
-            compartimentoSelecionado = Number(valor);
-        }
-
-    });
-
-});
-
-    window.adicionarItem = async function() {
-        const desc = descricaoInput.value.trim();
-        const eixo = eixoSelecionado;
-        const lado = ladoSelecionado;
-        const tipo = tipoSelecionado;
-        const comp = compartimentoSelecionado;
-        if (!desc || !eixo || !lado) return alert("Preencha Descrição, Eixo e Lado");
-
-        let fotos = [];
-
-for (const arquivo of fotosSelecionadas) {
-
-    const storageRef = ref(
-        storage,
-        `avarias/${Date.now()}_${Math.random().toString(36).substring(2)}.jpg`
-    );
-
-    const fotoOtimizada = await comprimirImagem(arquivo);
-
+    // NOVO: Comprime a imagem antes de enviar
+    const fotoOtimizada = await comprimirImagem(fotoFile);
+    
+    // Envia o arquivo otimizado em vez do original
     await uploadBytes(storageRef, fotoOtimizada);
-
     const url = await getDownloadURL(storageRef);
-
     fotos.push(url);
-
 }
         naoConformidades.push({
             grupo: "MANUAL", descricao: desc, eixo: eixo, lado: lado, tipo: tipo,
             compartimento: comp ? Number(comp) : null,
             fotos: fotos, resolvido: false, origem: "manual"
         });
-        marcarAlteracao();
+
         limparCamposItem();
         renderLista();
         salvarSugestaoDescricao(desc);
@@ -2630,15 +1024,10 @@ function renderLista() {
     });
 }
 
-window.removerItem = (i) => {
-
-    naoConformidades.splice(i, 1);
-
-    marcarAlteracao();
-
-    renderLista();
-
-};
+    window.removerItem = (i) => {
+        naoConformidades.splice(i, 1);
+        renderLista();
+    };
 
     // --- FINALIZAÇÃO ---
     window.criar = async function() {
@@ -2649,13 +1038,22 @@ window.removerItem = (i) => {
 
         const placaVal = normalizarPlacaGo(placaInput.value);
         const tipoVal = document.getElementById("tipo").value;
-        const tipoManutencaoVal = document.getElementById("tipoManutencao").value;
+        let tipoManutencaoVal = document.getElementById("tipoManutencao").value;
+        const isTerceirizada = tipoVal === "cavalo_terceiro";
+        if (isTerceirizada) tipoManutencaoVal = "terceirizada";
         placaInput.value = placaVal;
 
         if (!placaVal || !tipoVal || !tipoManutencaoVal) {
             alert("Preencha os dados obrigatórios (Placa, Tipo e Manutenção)");
             btn.disabled = false;
             btn.innerText = "✅ Finalizar Inspeção";
+            return;
+        }
+
+        if (isTerceirizada && naoConformidades.length === 0) {
+            alert("Adicione pelo menos um item pontuado pelo inspetor para a terceirizada.");
+            btn.disabled = false;
+            btn.innerText = "âœ… Finalizar InspeÃ§Ã£o";
             return;
         }
 
@@ -2673,7 +1071,9 @@ const placaLimpa = placaVal
   .replace(/-/g, "");
 
 const implementoId =
-  `${placaLimpa}_${dataId}`;
+  isTerceirizada
+    ? `${placaLimpa}_${dataId}_terceiro_${Date.now()}`
+    : `${placaLimpa}_${dataId}`;
 
         try {
 const implementoRef =
@@ -2684,6 +1084,9 @@ await setDoc(implementoRef, {                placa: placaVal,
                 placaBusca: placaLimpa,
                 tipo: tipoVal,
                 status: "em_inspecao",
+                terceirizada: isTerceirizada,
+                fluxoInspecao: isTerceirizada ? "terceirizada" : "normal",
+                resultadoReinspecao: null,
                 dataInspecao: dataInfo.timestamp,
                 dataFormatada: dataInfo.data,
                 horaFormatada: dataInfo.hora,
@@ -2700,6 +1103,7 @@ await setDoc(inspecaoRef, {
                 km: Number(document.getElementById("km").value) || null,
                 horimetro: Number(document.getElementById("horimetro").value) || null,
                 compartimentos: Number(document.getElementById("compartimentos").value) || 0,
+                fluxoInspecao: isTerceirizada ? "terceirizada" : "normal",
                 criadoEm: dataInfo.timestamp,
                 data: dataInfo.data,
                 hora: dataInfo.hora,
@@ -2724,14 +1128,16 @@ for (const item of naoConformidades) {
     doc(db, "naoConformidades", ncId),
     {
       ...item,
-      inspecaoId: implementoId
+      inspecaoId: implementoId,
+      fluxoInspecao: isTerceirizada ? "terceirizada" : "normal",
+      statusReinspecao: null
     }
   );
 
   contadorNc++;
 }
 
-            limparAlteracao();
+
             alert("Inspeção Criada com sucesso!");
             location.href = "detalhe.html?id=" + implementoRef.id;
         } catch (e) {
@@ -2741,46 +1147,6 @@ for (const item of naoConformidades) {
             btn.innerText = "✅ Finalizar Inspeção";
         }
     };
-
-    function marcarAlteracao() {
-    alteracoesPendentes = true;
-}
-
-function limparAlteracao() {
-    alteracoesPendentes = false;
-}
-
-window.addEventListener("beforeunload", (e) => {
-
-    if (!alteracoesPendentes) return;
-
-    e.preventDefault();
-    e.returnValue = "";
-
-});
-
-history.pushState(null, "", location.href);
-
-window.addEventListener("popstate", () => {
-
-    if (!alteracoesPendentes)
-        return;
-
-    const sair = confirm(
-        "Existe uma inspeção em andamento.\n\nDeseja realmente sair?"
-    );
-
-    if (sair) {
-
-        history.back();
-
-    } else {
-
-        history.pushState(null, "", location.href);
-
-    }
-
-});
 
     function getUsuarioLogado() {
         const user = auth.currentUser;
@@ -2851,144 +1217,47 @@ window.addEventListener("popstate", () => {
         }
     }
 
-function renderSugestoesDescricao() {
+    function renderSugestoesDescricao() {
+        const termo = normalizarTextoBusca(descricaoInput.value);
+        if (termo.length < 2) {
+            esconderSugestoesDescricao();
+            return;
+        }
 
-    const termo = normalizarTextoBusca(descricaoInput.value);
+        const resultados = sugestoesDescricao
+            .map(descricao => ({
+                descricao,
+                score: calcularSimilaridadeDescricao(termo, normalizarTextoBusca(descricao))
+            }))
+            .filter(item => item.score > 0 && normalizarTextoBusca(item.descricao) !== termo)
+            .sort((a, b) => b.score - a.score || a.descricao.localeCompare(b.descricao, "pt-BR"))
+            .slice(0, 6);
 
-    if (termo.length < 2) {
-        esconderSugestoesDescricao();
-        return;
-    }
+        if (!resultados.length) {
+            esconderSugestoesDescricao();
+            return;
+        }
 
-    const resultados = sugestoesDescricao
-        .map(descricao => ({
-            descricao,
-            score: calcularSimilaridadeDescricao(
-                termo,
-                normalizarTextoBusca(descricao)
-            )
-        }))
-        .filter(item =>
-            item.score > 0 &&
-            normalizarTextoBusca(item.descricao) !== termo
-        )
-        .sort((a, b) =>
-            b.score - a.score ||
-            a.descricao.localeCompare(b.descricao, "pt-BR")
-        )
-        .slice(0, 6);
-
-    if (!resultados.length) {
-        esconderSugestoesDescricao();
-        return;
-    }
-
-    sugestoesDescricaoEl.innerHTML = resultados.map(item => `
-        <button
-            type="button"
-            class="sugestao-descricao-item"
-            data-descricao="${escapeAttr(item.descricao)}">
-            ${escapeHTML(item.descricao)}
-        </button>
-    `).join("");
-
-    sugestoesDescricaoEl.classList.add("ativo");
-
-    sugestoesDescricaoEl
-        .querySelectorAll(".sugestao-descricao-item")
-        .forEach(btn => {
-
-            btn.addEventListener("click", () => {
-
-                descricaoInput.value = btn.dataset.descricao;
-
-                esconderSugestoesDescricao();
-
-                descricaoInput.focus();
-
-            });
-
-        });
-
-}    
-
-function renderSugestoesPlaca() {
-
-    const termo = placaInput.value
-        .trim()
-        .toUpperCase();
-
-    if (termo.length < 2) {
-        esconderSugestoesPlaca();
-        return;
-    }
-
-    const resultados = frotas
-        .filter(f => {
-
-            const frota = String(f.frota || "").toUpperCase();
-            const placa = String(f.placa || "").toUpperCase();
-
-            return (
-                frota.includes(termo) ||
-                placa.includes(termo)
-            );
-
-        })
-        .slice(0, 8);
-
-    if (!resultados.length) {
-        esconderSugestoesPlaca();
-        return;
-    }
-
-    sugestoesPlacaEl.innerHTML = resultados.map(f => {
-
-        const texto = f.placa
-            ? `${f.frota} - ${f.placa}`
-            : f.frota;
-
-        return `
-            <button
-                type="button"
-                class="sugestao-descricao-item"
-                data-frota="${escapeAttr(f.frota)}">
-                ${escapeHTML(texto)}
+        sugestoesDescricaoEl.innerHTML = resultados.map(item => `
+            <button type="button" class="sugestao-descricao-item" data-descricao="${escapeAttr(item.descricao)}">
+                ${escapeHTML(item.descricao)}
             </button>
-        `;
+        `).join("");
 
-    }).join("");
-
-    sugestoesPlacaEl.classList.add("ativo");
-
-    sugestoesPlacaEl
-        .querySelectorAll(".sugestao-descricao-item")
-        .forEach(btn => {
-
+        sugestoesDescricaoEl.classList.add("ativo");
+        sugestoesDescricaoEl.querySelectorAll(".sugestao-descricao-item").forEach(btn => {
             btn.addEventListener("click", () => {
-
-                placaInput.value = btn.dataset.frota;
-
-                esconderSugestoesPlaca();
-
+                descricaoInput.value = btn.dataset.descricao;
+                esconderSugestoesDescricao();
+                descricaoInput.focus();
             });
-
         });
-
-}    
+    }
 
     function esconderSugestoesDescricao() {
         sugestoesDescricaoEl.classList.remove("ativo");
         sugestoesDescricaoEl.innerHTML = "";
     }
-
-    function esconderSugestoesPlaca() {
-
-    sugestoesPlacaEl.classList.remove("ativo");
-
-    sugestoesPlacaEl.innerHTML = "";
-
-}
 
     function calcularSimilaridadeDescricao(termo, descricaoNormalizada) {
         if (!termo || !descricaoNormalizada) return 0;
@@ -3036,7 +1305,7 @@ function renderSugestoesPlaca() {
         esconderSugestoesDescricao();
         document.getElementById("foto").value = "";
         document.getElementById("preview").style.display = "none";
-        fotosSelecionadas = [];
+        fotoFile = null;
     }
 
     // Função para reduzir o tamanho da imagem antes do upload

@@ -10,15 +10,13 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRSVQ-M_r9RukOOZBWt5GZuoUQJFBHZ2A",
-
   authDomain: "controle-manutencao-cc96e.firebaseapp.com",
-
   projectId: "controle-manutencao-cc96e",
 
+  // 🔥 CORREÇÃO AQUI
   storageBucket: "controle-manutencao-cc96e.firebasestorage.app",
 
   messagingSenderId: "453313302773",
-
   appId: "1:453313302773:web:64e384e412c1458adcf5bc"
 };
 
